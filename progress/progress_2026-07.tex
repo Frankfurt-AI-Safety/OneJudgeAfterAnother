@@ -1,6 +1,7 @@
 % DATED PROGRESS CHECKPOINT (like the slide decks). A frozen snapshot of where we are, for reference.
 % One file per checkpoint in progress/. Paths are ROOT-relative (shared/...) not ../shared/...:
 % Overleaf compiles a subfolder Main document from the PROJECT ROOT, and local latexmk is run from root too.
+% Prose transposition of the July team-update outline (team_update_outline.md in the code repo).
 \documentclass{article}
 \input{shared/macros}
 \title{Progress Checkpoint --- July 2026}
@@ -9,14 +10,147 @@
 \begin{document}
 \maketitle
 
-\section{Where we are}
-Pipeline + four experiment arms on \modelSmall{}, committed and tested. Headline: direct-scoring bias is
-large and behaviourally low-complexity (sex \autoInflSexCVbase{}$\to$\autoInflSexCVnull{}); the reward
-model rewards correct reasoning, not fairness (correctness effect \reasonCorrectnessPL{}); and
-\leace{}+MLP shows the concept is entangled (MLP recovers at \erasureMlpLeaceCorrPL{} after linear erasure).
+\section{Overview}
+This checkpoint catches the team up from the base paper to our current state. The arc: starting from
+\citet{fein2026onebias} (spurious biases, the difference-of-means probe $+$ null-space projection, and the
+low- vs high-complexity question), we ask the \emph{same} mechanistic question at a \emph{new locus} --- the
+\rewardmodel{}, the shared upstream evaluator reused across RLHF, best-of-$N$, and data filtering --- along a
+\emph{new axis}, demographic and intersectional protected-attribute bias. We built a two-domain matched-pair
+pipeline; the bias is real, large, and behaviourally \emph{linearly} removable; but modelling the actual
+model \emph{response} shows the RM rewards \textbf{correct reasoning}, not fairness; and mechanistically the
+concepts are \textbf{entangled} --- linearly erasable yet non-linearly recoverable, so nulling fixes the
+\emph{reward}, not the \emph{representation}.
 
-\section{Next}
-\todo{Scale to 8B/instruct (validates directions + makes \crossinf{} interpretable); RQ4 robustness.}
+Two scope decisions were taken this cycle (detailed in \S\ref{sec:decisions}): we are going \textbf{all-in
+on Direction~1} (candidate Directions 2--5 parked), and we are \textbf{adding a third domain, education
+(grading student assignments/tests)}, alongside credit and recruitment (CV) --- designed this cycle, not yet
+built or run.
+
+\section{Framing and the gap}
+Reward models are the most reused and least directly observed component of the alignment stack, so a
+systematic error there propagates across every downstream use of the reward signal. The regulatory hook is
+the EU AI Act's Annex-III high-risk regime \citep{euaiact2024}: recruitment and creditworthiness are named
+high-risk uses, and sex, age, and pregnancy/family status are protected. Prior fairness work debiases the
+\emph{decision} model; the reward-model locus is the gap we occupy, and we carry the base paper's mechanistic
+low- vs high-complexity lens into the protected-attribute setting.
+
+\section{Approach --- design grammar}
+Matched-pair contrastive design (hold content fixed, vary only the target attribute). Two metrics:
+\autoinf{} (preference shift on equal-quality items) and \crossinf{} (reliability harm --- accuracy
+degradation when a cue is attached to the weaker option; the metric that maps onto the Act's concern with
+biased false positives/negatives). Each attribute is tested in an \textbf{explicit} form (stated) and a
+\textbf{proxy} form (inferred from realistic cues). The mechanistic step: extract a \diffmean{} direction,
+sweep null-space projection strength, and classify the bias low- vs high-complexity. Anchor case for credit
+and CV: the sex $\times$ age $\times$ family-status intersection (women $\approx$30, the pregnancy window).
+
+\section{What we built --- one pipeline, two domains (a third added to the design)}
+Synthetic marker injection over \textbf{German Credit} (credit) and \textbf{synthetic CVs} (recruitment).
+Synthetic substrates buy clean single-axis control and avoid the German-Credit sex$+$marital entanglement; a
+Tier-1 structural-validation gate enforces single-slot, length-, and readability-matched pairs; a
+\texttt{DomainSpec} registry makes adding a domain a one-entry change; and everything runs locally on Apple
+Silicon (MLX). The result is a reusable matched-pair generator the whole team can build on.
+
+The \textbf{new third domain --- education (grading student assignments/tests)} --- grades a student's
+answer, with a strong/weak \texttt{high\_quality} label as the quality ground truth (the grading analog of
+CV \texttt{qualified} / credit \texttt{credit\_good}); its axes are sex $+$ ethnicity (name-proxy,
+\citealp{haim2024whatsinaname}) $+$ disability, since age and family status are unnatural on a student
+assignment. It was \emph{designed this cycle but not yet built} --- no education results yet, and its
+\crossinf{} on \modelSmall{} would inherit the same ``needs a bigger RM'' caveat as CV (below).
+
+\section{Results}
+
+\subsection{Direct scoring (auto-influence)}
+The bias is \textbf{large and low-complexity} and \textbf{replicates across both credit and CV}: sex and
+intersection auto-influence $\approx$1.0, dropping to $\approx$0 when nulled
+(sex on CV: \autoInflSexCVbase{}$\to$\autoInflSexCVnull{}). The intersection is only \emph{partially}
+additive relative to the sum of its marginals (a genuine interaction component). A CV-specific twist:
+\textbf{proxy $>$ explicit} for age and family status --- the RM reacts to realistic cues (graduation year,
+career gap) more than to bald statements, the more concerning pattern.
+
+\subsection{Cross-influence (the headline metric) --- and an honest limit}
+\crossinf{} is the reliability-harm headline, but on the small \modelSmall{} RM it is \textbf{not cleanly
+interpretable}: the RM barely tracks applicant quality (\texttt{acc\_baseline} $\approx$0.51 credit /
+$\approx$0.59 CV), so the strong/weak label is not a valid ground truth. The built-in
+\texttt{baseline\_tracks\_quality} flag caught this --- an honest negative that motivates scaling to a larger
+RM.
+
+\subsection{Modelling the actual model response (decision-response arm)}
+A genuine USER-task $\to$ ASSISTANT-\emph{verdict} conversation, scored with each RM's real chat template:
+does the RM reward a \textbf{discriminatory} verdict over a \textbf{fair} one? It resists overt
+\textbf{sex/age} discrimination, but the margin \textbf{erodes on family-status / intersection} (the
+pregnancy axis), and it never rewards an \textbf{evasive} non-answer over a substantive fair one.
+
+\subsection{The reasoning discovery}
+A correctness $\times$ conclusion \textbf{2$\times$2}, with a non-demographic \emph{commute} control, shows
+the RM rewards \textbf{factually-correct causal reasoning} (correctness effect \reasonCorrectnessPL{}) plus a
+positivity bias --- \textbf{not fairness per se} --- and the effect is \textbf{domain-general} (essentially
+identical on the neutral control). This reframes the decision-response result: verdict scores are dominated
+by reasoning quality and positivity, not demographic fairness.
+
+\subsection{Method --- \leace{} and \taco{}: a stronger complexity test}
+The base paper classifies a bias by whether sweeping null-space projection on a \diffmean{} direction makes
+the behaviour drop cheaply. That only probes the \emph{linear} subspace and only asks whether nulling kills
+the \emph{behaviour} --- not whether the concept is still \emph{present}.
+\begin{itemize}
+  \item \textbf{\leace{}} \citep{belrose2023leace}: closed-form, provably-\emph{optimal linear} concept
+        erasure --- no linear classifier can recover the concept afterwards (a principled upgrade over
+        heuristic \diffmean{} nulling).
+  \item \textbf{\taco{} test} \citep{taco2024}: after optimal linear erasure, train a \emph{non-linear} (MLP)
+        probe. Still recoverable $\Rightarrow$ ``linearly erasable but non-linearly recoverable'' $=$ the
+        signature of an \textbf{entangled / high-complexity} bias.
+\end{itemize}
+This matters for us and the base paper: the nulling test can be \emph{fooled} --- a bias can look
+low-complexity while the concept remains fully present in the representation. \leace{}$+$\taco{} is a
+stronger, provable robustness check we can retrofit to the base paper's headline complexity claims.
+
+\subsection{Applying \leace{}/\taco{} (the mechanistic headline)}
+Run on the reasoning concepts (correctness, conclusion), held-out and paraphrase-diversified: after \leace{}
+the \emph{linear} probe drops to chance (as guaranteed), but the \emph{MLP} still recovers at
+\erasureMlpLeaceCorrPL{} ($\approx$99--100\%) $\Rightarrow$ \textbf{entangled / high-complexity}. So
+null-space projection removes the \emph{reward effect}, not the \emph{represented concept} --- this corrects
+the naive ``low-complexity'' reading and is a real safety point: \textbf{debiasing the reward $\neq$
+debiasing the model}. Caveat: \modelSmall{} only; templated verdicts leave a residual surface confound.
+
+\section{Decisions this cycle}
+\label{sec:decisions}
+\begin{itemize}
+  \item \textbf{All-in on Direction~1} (intersectional protected-attribute bias in high-risk decisions).
+        Candidate Directions 2--5 (dialect/register, political content-vs-style, generational register, and
+        the open slot) are parked; they reuse the same design grammar and can be revived later.
+  \item \textbf{Third domain --- education (grading).} A direct-scoring parity arm mirroring CV via the
+        domain registry (auto-/cross-influence $+$ intersectional come ``for free'' once the substrate
+        lands); needs two new \emph{shared} single-axis markers (ethnicity name-proxy, disability) plus a
+        subject-noun parameter, and mirror files for ingest/render/dataset. Docs updated this cycle; code
+        not yet built.
+\end{itemize}
+
+\section{Next steps}
+
+\subsection{Research --- Direction~1}
+Status: pipeline $+$ four experiment arms, all on \modelSmall{}, committed and tested.
+\begin{itemize}
+  \item \textbf{Build and run the education (grading) arm}: synthetic graded-answer substrate $+$ the two
+        new shared axes; gives a genuine cross-domain transfer test (credit $\leftrightarrow$ CV
+        $\leftrightarrow$ education) for the RQ5 robustness claim.
+  \item \textbf{Task-framing axis} $\{$economic, fairness, neutral$\}$: does stating the decision objective
+        change the bias?
+  \item \textbf{Scoring readout}: add forced-choice pairwise as a robustness cross-check on the scalar gap.
+  \item \textbf{Retrofit \leace{}/\taco{}} to the demographic/profile directions \emph{and} the base paper's
+        own headline biases (the robustness check above).
+  \item LLM-generated verdicts $+$ explicit evasion scoring (referee arm); Bias-in-Bios real CVs (external
+        validity); the other four RMs.
+\end{itemize}
+
+\subsection{Organizational --- compute for the larger RMs}
+The pipeline is finished and validated locally on \modelSmall{} (MLX); the scientific payoff now needs
+larger / instruct RMs (8B $\to$ 70B) and real GPU compute. Why it is worth it: (a) validate the directions
+beyond a tiny model; (b) a bigger RM likely tracks applicant quality, making \crossinf{} interpretable and
+unblocking the EU-AI-Act headline metric; (c) sharpen the reasoning/entanglement findings. The ask is
+\textbf{compute credits / GPU access}. Rough sizing: 8B $\approx$16\,GB (single A100 / consumer GPU); 70B
+needs multi-GPU; $N$ RMs $\times$ 4 arms.
+\todo{Fill in the compute specifics: budget owner; cloud credits (which provider / research-grant program?)
+vs.\ internal cluster allocation (the existing \texttt{*\_shp\_qwen3\_*} configs point at a cluster path ---
+is there time on it?); propose a concrete credit request $+$ owner $+$ timeline.}
 
 \bibliographystyle{plainnat}
 \bibliography{shared/references}

@@ -33,8 +33,10 @@ not just the demographic ones. (This makes our robustness check a contribution b
 
 \subsection{RQ1 --- Prevalence: which protected attributes are inherited?}
 Which EU-protected attributes does an \rewardmodel{} exhibit a measurable bias for when scoring
-otherwise-identical high-risk decision content (recruitment, credit)? Measured on matched-pair
-contrastive items under explicit and proxy encodings, via \autoinf{} (preference shift) and \crossinf{}
+otherwise-identical high-risk decision content across three Annex-III domains --- recruitment
+(CV screening), credit scoring, and education (grading student assignments/tests)? Measured on
+matched-pair contrastive items under explicit and proxy encodings, via \autoinf{} (preference shift)
+and \crossinf{}
 (reliability harm) \citep{kumar2025prefix}, across the five \RMs{}. We report magnitude and removability,
 not a betted direction.
 
@@ -72,7 +74,8 @@ from the representation (RQ3), how robust is the mitigation? Does a projection f
 effective on held-out domains, templates, encodings (explicit$\leftrightarrow$proxy), phrasings, and
 unseen intersections --- or does the bias concept \emph{leak back} into the reward scalar under
 distribution shift? (Operationalized: fit on split/domain A, measure residual bias $+$ accuracy on
-held-out split/domain B; cross-domain and cross-encoding transfer.)
+held-out split/domain B; cross-domain and cross-encoding transfer.) The three domains --- credit,
+recruitment (CV), and education (grading) --- give us a genuine cross-domain transfer test.
 
 \subsection{RQ6 --- Cross-model consistency: dataset- vs architecture-driven}
 Is the bias --- magnitude and low/high-complexity class --- consistent across the five \RMs{}, or does it
@@ -96,6 +99,11 @@ locates where mitigation must live (upstream data governance vs model-internal e
 
 \subsection{Deferred / potential future directions}
 \begin{itemize}
+  \item \textbf{Other candidate directions deprioritized (team decision).} We are going \emph{all-in on
+        Direction~1} (intersectional protected-attribute bias in high-risk decisions). The other candidate
+        directions --- dialect/register bias (D2), political content-vs-style (D3), generational/age
+        register (D4), and the open slot (D5) --- are parked; they reuse the same design grammar and can be
+        revived later, but are out of scope for this cycle.
   \item Group-level (demographic-parity) framing \citep{song2025groupfairness} as a complement to the
         same-content counterfactual design --- do the two fall on opposite sides of the complexity
         boundary? \emph{Deferred}: out of scope for now, since it needs a \emph{new data pipeline} (group
@@ -105,11 +113,16 @@ locates where mitigation must live (upstream data governance vs model-internal e
 
 \subsection{Design axes (factors, not RQs)}
 These modulate RQ1--RQ4 rather than being separate questions:
-task framing $\{$economic, fairness, neutral$\}$; encoding $\{$explicit, proxy$\}$; scoring readout
+domain $\{$credit, recruitment (CV), education (grading)$\}$; task framing
+$\{$economic, fairness, neutral$\}$; encoding $\{$explicit, proxy$\}$; scoring readout
 $\{$scalar matched-pair (primary), forced-choice pairwise (secondary cross-check)$\}$.
 
 \subsection{Protected-attribute scope}
 Ground the attribute list in EU Charter Art.~21 $+$ AI Act Art.~10(2)(f,g), Art.~15 \citep{euaiact2024}.
+Anchors are per-domain: credit and recruitment (CV) anchor on the sex $\times$ age $\times$ family-status
+intersection (the pregnancy window); \textbf{education (grading)} anchors instead on \textbf{sex $+$
+ethnicity (name-proxy) $+$ disability}, since age and family/parental status are unnatural on a student
+assignment. All are drawn from the same scope below.
 \begin{itemize}
   \item \textbf{Explicitly statable --- cleanest matched pairs:} sex, age, family/parental status,
         \textbf{disability}. Each can be a single-slot stated marker (``a woman'', ``50 years old'',
@@ -131,8 +144,19 @@ Ground the attribute list in EU Charter Art.~21 $+$ AI Act Art.~10(2)(f,g), Art.
 \end{itemize}
 
 \section{Log}
+\subsection*{2026-07-02 --- domain scope \& direction decisions}
+\begin{itemize}
+  \item Team decided to add a \textbf{third domain: education (grading student assignments/tests)}, as a
+        direct-scoring parity arm to credit + recruitment (CV). Graded object $=$ student answer quality
+        (strong/weak $=$ the \crossinf{} quality label, grading analog of CV \texttt{qualified} / credit
+        \texttt{credit\_good}); axes $=$ sex $+$ ethnicity (name-proxy) $+$ disability. \emph{Docs updated
+        here; substrate/code not yet built --- results pending.}
+  \item Team decided to go \textbf{all-in on Direction~1}; candidate Directions 2--5 deprioritized (see
+        the deferred block above).
+\end{itemize}
 \subsection*{\today}
-\todo{First entry. Move settled results up into progress\_*.tex, then into sections/.}
+\todo{Move settled results up into progress\_*.tex, then into sections/. Build the education substrate
+(edu\_ingest/edu\_render/edu\_dataset $+$ domain registry entry $+$ ethnicity/disability markers).}
 
 \bibliographystyle{plainnat}
 \bibliography{shared/references}

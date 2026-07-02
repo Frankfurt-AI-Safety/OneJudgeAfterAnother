@@ -6,12 +6,18 @@
 \subsection{Substrates}
 \todo{Credit: German Credit \citep{germancredit} (CC-BY-4.0), decoded A-codes $\to$ neutral financial
 profile; sex+marital entanglement motivates synthetic injection. Hiring: synthetic CVs (CandidateRecord
-with a strong/weak \texttt{qualified} label, the quality ground truth for \crossinf{}).}
+with a strong/weak \texttt{qualified} label, the quality ground truth for \crossinf{}). Education
+(grading, \emph{planned}): synthetic graded student answers (AssignmentRecord with a strong/weak
+\texttt{high\_quality} label --- the grading analog of CV \texttt{qualified} / credit \texttt{credit\_good};
+strong $=$ well-argued/correct answer, weak $=$ poor/incorrect).}
 
 \subsection{Marker injection (single-axis)}
 \todo{Neutral slot-templated renderer with one \texttt{\{marker\}} slot; sex/age/family-status +
 the sex$\times$age$\times$family intersection; explicit and proxy (name / graduation-year / career-gap)
-encodings; the intersection clause composes the three marginal clauses (enables the additivity test).}
+encodings; the intersection clause composes the three marginal clauses (enables the additivity test).
+For the education domain: add \textbf{ethnicity} (name-proxy, Haim et al.\ lineage \citep{haim2024whatsinaname})
+and \textbf{disability} (explicit + proxy) axes as shared single-axis markers (also usable by credit/CV);
+subject noun parameterized (``the applicant'' $\to$ ``the student'').}
 
 \subsection{Tier-1 structural validation gate}
 \todo{Per matched pair: (1) exact single-slot difference (strip each marker clause $\to$ byte-identical
@@ -21,7 +27,7 @@ parity ($|\Delta$Flesch$|$ bounded). Over-generate, discard failures, record dis
 \subsection{Manifest, loader, reproducibility}
 \todo{Self-describing JSONL manifest (axis/encoding/template/intersectional cell/provenance); per-RM
 chat-template formatting applied at scoring time; datasets regenerable from seed. Domain registry
-(credit/cv) as the single dispatch point.}
+(credit/cv/education) as the single dispatch point --- adding a domain is one \texttt{DomainSpec} entry.}
 
 \subsection{Verdict + reasoning items (model-response arm)}
 \todo{Authored fair/discriminatory/neutral/evasive verdicts (length-matched); the correctness$\times$conclusion
