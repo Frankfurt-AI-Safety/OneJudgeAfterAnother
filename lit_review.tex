@@ -1,0 +1,29 @@
+% THOROUGH literature + dataset review (verbose on purpose). The paper's Related Work
+% (sections/02_related.tex) is a hand-trimmed distillation of this --- this file is NOT \input by the paper.
+\documentclass{article}
+\input{shared/macros}
+\title{Literature and Dataset Review --- Direction 1}
+\author{Frankfurt AI Safety --- RM-Bias Working Group}
+\date{\today}
+\begin{document}
+\maketitle
+\tableofcontents
+
+\section{Positioning and gap}
+\todo{Two mature literatures (demographic bias auditing of the decision model; representation-level
+debiasing of the decision model) converge on the edges; the \rewardmodel{} locus + the low/high-complexity
+lens is the open cell \citep{fein2026onebias,kumar2025prefix,song2025groupfairness}.}
+
+\section{Literature by cluster}
+\todo{A: demographic bias in RMs / LLM-judges. B: intersectional \& pregnancy. C: concept erasure
+(\leace{} \citep{belrose2023leace}, \taco{} \citep{taco2024}). D: LLM hiring. E: LLM credit. F: measurement
+design. G: does fairness framing work. H: legal anchor \citep{euaiact2024}.}
+
+\section{Dataset and resource scan}
+\todo{Per-asset licence + fit: German Credit \citep{germancredit}, Taiwan default, Adult/Folktexts,
+discrim-eval \citep{tamkin2023discrimeval}, Bias-in-Bios, Pena synthetic CVs, BBQ, name lists
+\citep{haim2024whatsinaname}. What we build ourselves: pregnancy/family-status markers, verdict layers.}
+
+\bibliographystyle{plainnat}
+\bibliography{shared/references}
+\end{document}

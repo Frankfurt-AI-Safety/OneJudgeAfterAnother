@@ -1,0 +1,23 @@
+% DATED PROGRESS CHECKPOINT (like the slide decks). A frozen snapshot of where we are, for reference.
+% One file per checkpoint in progress/. Paths are ROOT-relative (shared/...) not ../shared/...:
+% Overleaf compiles a subfolder Main document from the PROJECT ROOT, and local latexmk is run from root too.
+\documentclass{article}
+\input{shared/macros}
+\title{Progress Checkpoint --- July 2026}
+\author{Frankfurt AI Safety --- RM-Bias Working Group}
+\date{\today}
+\begin{document}
+\maketitle
+
+\section{Where we are}
+Pipeline + four experiment arms on \modelSmall{}, committed and tested. Headline: direct-scoring bias is
+large and behaviourally low-complexity (sex \autoInflSexCVbase{}$\to$\autoInflSexCVnull{}); the reward
+model rewards correct reasoning, not fairness (correctness effect \reasonCorrectnessPL{}); and
+\leace{}+MLP shows the concept is entangled (MLP recovers at \erasureMlpLeaceCorrPL{} after linear erasure).
+
+\section{Next}
+\todo{Scale to 8B/instruct (validates directions + makes \crossinf{} interpretable); RQ4 robustness.}
+
+\bibliographystyle{plainnat}
+\bibliography{shared/references}
+\end{document}

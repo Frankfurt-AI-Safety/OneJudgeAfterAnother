@@ -1,0 +1,13 @@
+# LaTeX build artifacts (Overleaf compiles server-side; local LaTeX Workshop writes to build/)
+build/
+.vscode/
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.pdf

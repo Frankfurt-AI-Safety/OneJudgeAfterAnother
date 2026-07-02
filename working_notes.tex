@@ -1,0 +1,27 @@
+% WORKING NOTES --- the living scratch document. Anything goes: half-results, ideas we are chasing,
+% things we tried, open questions, stuff we are unsure will reach the paper. Newest entry on top.
+% Graduation flow: working_notes -> progress_*.tex (checkpoints) -> sections/ (final paper).
+% Shares the bib + numbers macros, so citations and figures are consistent with the paper.
+\documentclass{article}
+\input{shared/macros}
+\title{Working Notes --- One Judge After Another}
+\author{Frankfurt AI Safety --- RM-Bias Working Group}
+\date{Living document --- last built \today}
+\begin{document}
+\maketitle
+\tableofcontents
+
+\section{Open questions / things we are chasing}
+\begin{itemize}
+  \item \todo{Does the reasoning-correctness effect survive on a larger / instruct RM, and does
+        \crossinf{} become interpretable (acc\_baseline $>0.6$)? Currently \crossAccBaselineCV{} on \modelSmall{}.}
+  \item \todo{RQ4 robustness: does a projection fit on one setting leak back under distribution shift?}
+\end{itemize}
+
+\section{Log}
+\subsection*{\today}
+\todo{First entry. Move settled results up into progress\_*.tex, then into sections/.}
+
+\bibliographystyle{plainnat}
+\bibliography{shared/references}
+\end{document}

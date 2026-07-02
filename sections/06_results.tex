@@ -1,0 +1,29 @@
+% !TEX root = ../main.tex
+\section{Results}
+\label{sec:results}
+
+% This section demonstrates the single-source-of-truth numbers macros (shared/numbers.tex).
+% Every value below is pulled from the experiment JSONs; never hand-edit a number here.
+
+\subsection{Direct scoring (auto-influence)}
+On CV, explicit-sex \autoinf{} is \autoInflSexCVbase{}, collapsing to \autoInflSexCVnull{} when the
+\diffmean{} direction is nulled; the intersection behaves likewise (\autoInflIntersectionCVbase{} $\to$
+\autoInflIntersectionCVnull{}). The intersection is partially additive (cosine \additivityCosCV{}).
+\todo{expand; add credit numbers and the proxy $>$ explicit CV twist
+(\batteryAgeExplicitCV{} vs \batteryAgeProxyCV{}; \batteryFamilyExplicitCV{} vs \batteryFamilyProxyCV{}).}
+
+\subsection{Cross-influence}
+\todo{acc\_baseline \crossAccBaselineCV{} (CV) --- not yet interpretable on \modelSmall{}; motivates scaling.}
+
+\subsection{Decision-response (does the RM reward a discriminatory verdict?)}
+Discriminatory-verdict win-rate is \decisionDiscWinSex{} (sex) and \decisionDiscWinAge{} (age), but rises
+to \decisionDiscWinFamily{} (family) and \decisionDiscWinIntersection{} (intersection). \todo{evasion control.}
+
+\subsection{Reasoning vs fairness}
+The RM rewards correct reasoning (\reasonCorrectnessPL{} on parental-leave) essentially equally on the
+non-demographic commute control (\reasonCorrectnessCommute{}) --- a domain-general effect, not fairness.
+
+\subsection{LEACE + non-linear probe (complexity)}
+After \leace{}, the linear probe drops to \erasureLinearLeaceCorrPL{} while the MLP still recovers at
+\erasureMlpLeaceCorrPL{}: the concept is linearly erasable but non-linearly recoverable (entangled).
+\todo{state the reward-vs-representation consequence.}

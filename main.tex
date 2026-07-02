@@ -1,14 +1,33 @@
+% THE PAPER (final prose only). Compile this as the Overleaf "Main document".
+% Working/intermediate material lives in working_notes.tex, lit_review.tex, data_pipeline.tex,
+% and progress_*.tex (each its own root document / PDF).
 \documentclass{article}
-\usepackage{graphicx} % Required for inserting images
+\input{shared/macros}
 
-\title{OneJudgeAfterAnother}
-\author{Cedric Kopp}
-\date{July 2026}
+\title{One Judge After Another:\\ Mechanistic Fairness of Protected-Attribute Bias in Language Reward Models}
+\author{Cedric Kopp \and Frankfurt AI Safety --- Reward-Model-Bias Working Group}
+\date{Draft --- \today}
 
 \begin{document}
-
 \maketitle
 
-\section{Introduction}
+\begin{abstract}
+\input{sections/00_abstract}
+\end{abstract}
+
+\input{sections/01_intro}
+\input{sections/02_related}
+\input{sections/03_method}
+\input{sections/04_pipeline}
+\input{sections/05_experiments}
+\input{sections/06_results}
+\input{sections/07_discussion}
+\input{sections/08_conclusion}
+
+\bibliographystyle{plainnat}
+\bibliography{shared/references}
+
+\appendix
+\input{appendix/A_pipeline}
 
 \end{document}
