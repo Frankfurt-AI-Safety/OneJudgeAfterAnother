@@ -11,6 +11,118 @@
 \maketitle
 \tableofcontents
 
+\section{Research questions (draft)}
+\label{sec:rq-draft}
+Draft RQ set for the extension. Not yet locked; promote to \texttt{sections/} once settled.
+
+\paragraph{Main question.}
+Do language \RMs{} inherit EU-protected demographic (and intersectional) biases; are these biases
+low- or high-complexity in the model's activations; can mechanistic reward shaping remove them; and is
+that removal \emph{robust} --- or does the bias only get cleaned from the reward scalar while remaining
+entangled in the representation and leaking back under new conditions?
+
+\subsection{RQ0 --- Replication, and re-testing the base paper's own complexity claims}
+Two limbs. \textbf{(a)} Do the base-paper low-complexity interventions (length, uncertainty, position)
+reproduce on the five \RMs{}, with RewardBench-2 non-inferiority \citep{fein2026onebias}? \textbf{(b)}
+Apply \leace{} $+$ non-linear-probe (\taco{}) to the base paper's \emph{own} identified biases (the
+``low-complexity'' length/uncertainty/position and the ``high-complexity'' sycophancy/model-style): does
+\nullspace{} remove the concept from the \emph{representation}, or only its contribution to the reward
+\emph{scalar}? I.e.\ re-run the base paper's low/high-complexity classification under the stronger
+erasure/recoverability test, and check the reward-vs-representation gap for the spurious biases too ---
+not just the demographic ones. (This makes our robustness check a contribution back to the base method.)
+
+\subsection{RQ1 --- Prevalence: which protected attributes are inherited?}
+Which EU-protected attributes does an \rewardmodel{} exhibit a measurable bias for when scoring
+otherwise-identical high-risk decision content (recruitment, credit)? Measured on matched-pair
+contrastive items under explicit and proxy encodings, via \autoinf{} (preference shift) and \crossinf{}
+(reliability harm) \citep{kumar2025prefix}, across the five \RMs{}. We report magnitude and removability,
+not a betted direction.
+
+\paragraph{RQ1.1 --- Intersectional.}
+For the anchor intersection (sex $\times$ age $\times$ family-status; women $\approx 30$), is there a
+\emph{distinct} intersectional bias, and is it \emph{non-additive} --- larger than, and not equal to, the
+vector sum of the single-attribute directions?
+
+\subsection{RQ2 --- Downstream harm (decision-response)}
+When the \rewardmodel{} scores a \emph{decision response} rather than the applicant text --- a fair
+recommendation vs a clearly discriminatory one for the same applicant --- which does it reward? I.e.\
+would the RM reward a policy model that discriminates (the RLHF / best-of-N propagation story)? Headline:
+win-rate of the discriminatory verdict over the fair one, with an explicit \textbf{evasion control}
+(a non-committal answer must not out-score a substantive fair one). Already implemented.
+
+\subsection{RQ3 --- Complexity: low vs high, and where it lives}
+For each attribute and the intersection, is the bias low- or high-complexity, distinguishing two senses:
+\begin{itemize}
+  \item \textbf{reward-scalar level:} is its contribution to the scalar reward a single near-linear
+        direction that \nullspace{} removes at near-zero cost to legitimate accuracy?
+  \item \textbf{representation level:} after provably-optimal linear erasure (\leace{}
+        \citep{belrose2023leace}), can a non-linear (MLP) probe still recover the concept? Linearly
+        erasable but non-linearly recoverable $=$ the \taco{} signature of an entangled (high-complexity)
+        bias \citep{taco2024}. This upgrades the base paper's nulling-based classification.
+\end{itemize}
+
+\subsection{RQ4 --- Mitigation via mechanistic reward shaping}
+Where the bias is (reward-scalar) low-complexity, does \diffmean{}/\leace{} + \nullspace{} reduce the
+reliability harm and preference bias \emph{without} degrading legitimate reward accuracy (RewardBench-2
+non-inferiority)? Report the trade-off curve over projection strength $\alpha$.
+
+\subsection{RQ5 --- Robustness / generalization of the intervention}
+Because reward shaping removes the bias's linear contribution to the scalar but not the entangled concept
+from the representation (RQ3), how robust is the mitigation? Does a projection fit on one setting stay
+effective on held-out domains, templates, encodings (explicit$\leftrightarrow$proxy), phrasings, and
+unseen intersections --- or does the bias concept \emph{leak back} into the reward scalar under
+distribution shift? (Operationalized: fit on split/domain A, measure residual bias $+$ accuracy on
+held-out split/domain B; cross-domain and cross-encoding transfer.)
+
+\subsection{RQ6 --- Cross-model consistency: dataset- vs architecture-driven}
+Is the bias --- magnitude and low/high-complexity class --- consistent across the five \RMs{}, or does it
+vary by model? Our set is a natural experiment: the three Skywork-V2 models share Skywork's preference
+data but differ in base architecture/size (Llama-8B, Qwen3-8B, Qwen3-0.6B), while AllenAI-Llama and
+OpenAssistant-DeBERTa add cross-recipe diversity. If the bias clusters by \emph{training data} it is
+dataset-driven; if by \emph{architecture/family}, architecture-driven \citep{kumar2025prefix}. This
+locates where mitigation must live (upstream data governance vs model-internal editing).
+
+\subsection{Validity confounds to pre-empt}
+\begin{itemize}
+  \item \textbf{Reasoning-correctness (construct validity).} Is the measured effect really the protected
+        attribute, or the RM tracking (correct) reasoning / response quality? We have evidence it is the
+        latter for verdicts (reasoning-flip 2$\times$2 with a non-demographic commute control). Needs to
+        be a stated control, not a footnote.
+  \item \textbf{Brittleness.} RMs react to non-demographic perturbations too; matched pairs must hold all
+        non-target variation fixed (our Tier-1 gate).
+  \item \textbf{Evasion.} Fairness framing can manifest as non-answers; score for evasion so it does not
+        masquerade as fairness.
+\end{itemize}
+
+\subsection{Deferred / potential future directions}
+\begin{itemize}
+  \item Group-level (demographic-parity) framing \citep{song2025groupfairness} as a complement to the
+        same-content counterfactual design --- do the two fall on opposite sides of the complexity
+        boundary? \emph{Deferred}: out of scope for now, since it needs a \emph{new data pipeline} (group
+        construction from genuinely different prompts, e.g.\ arXiv-style occupational proxies) rather than
+        our matched-pair generator.
+\end{itemize}
+
+\subsection{Design axes (factors, not RQs)}
+These modulate RQ1--RQ4 rather than being separate questions:
+task framing $\{$economic, fairness, neutral$\}$; encoding $\{$explicit, proxy$\}$; scoring readout
+$\{$scalar matched-pair (primary), forced-choice pairwise (secondary cross-check)$\}$.
+
+\subsection{Protected-attribute scope}
+Ground the attribute list in EU Charter Art.~21 $+$ AI Act Art.~10(2)(f,g), Art.~15 \citep{euaiact2024}.
+\begin{itemize}
+  \item \textbf{Explicitly statable --- cleanest matched pairs:} sex, age, family/parental status,
+        \textbf{disability}. Each can be a single-slot stated marker (``a woman'', ``50 years old'',
+        ``on parental leave'', ``has a disability'') plus a proxy form --- a true single-axis swap.
+  \item \textbf{Proxy-only (name-based) --- standard but confounded:} ethnic/national origin. There is
+        \emph{no} clean stated form on a CV/loan profile; the audit-study method swaps validated
+        \emph{name} lists coded to different origins \citep{haim2024whatsinaname}. Caveat: names conflate
+        ethnicity with class, region, and religion, so the single-axis guarantee is weaker than for
+        sex/age --- report it as a name-proxy effect, not pure ethnicity.
+  \item \textbf{Hard to operationalize without artifice --- exploratory:} religion, sexual orientation.
+        Explicit markers are unnatural on these profiles and proxies are noisy.
+\end{itemize}
+
 \section{Open questions / things we are chasing}
 \begin{itemize}
   \item \todo{Does the reasoning-correctness effect survive on a larger / instruct RM, and does
