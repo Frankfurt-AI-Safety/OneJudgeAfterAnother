@@ -120,9 +120,9 @@ $\{$scalar matched-pair (primary), forced-choice pairwise (secondary cross-check
 \subsection{Protected-attribute scope}
 Ground the attribute list in EU Charter Art.~21 $+$ AI Act Art.~10(2)(f,g), Art.~15 \citep{euaiact2024}.
 Anchors are per-domain: credit and recruitment (CV) anchor on the sex $\times$ age $\times$ family-status
-intersection (the pregnancy window); \textbf{education (grading)} anchors instead on \textbf{sex $+$
-ethnicity (name-proxy) $+$ disability}, since age and family/parental status are unnatural on a student
-assignment. All are drawn from the same scope below.
+intersection (the pregnancy window); \textbf{education (grading)} anchors instead on a header
+\textbf{name} ($\to$ sex $+$ ethnicity name-proxy) and \textbf{grade level} ($\to$ age / education-stage),
+injected on real essays; disability is deferred. All are drawn from the same scope below.
 \begin{itemize}
   \item \textbf{Explicitly statable --- cleanest matched pairs:} sex, age, family/parental status,
         \textbf{disability}. Each can be a single-slot stated marker (``a woman'', ``50 years old'',
@@ -140,6 +140,9 @@ assignment. All are drawn from the same scope below.
 \begin{itemize}
   \item \todo{Does the reasoning-correctness effect survive on a larger / instruct RM, and does
         \crossinf{} become interpretable (acc\_baseline $>0.6$)? Currently \crossAccBaselineCV{} on \modelSmall{}.}
+        \emph{Partly resolved:} on the \textbf{education} domain \crossinf{} \emph{is} interpretable even on
+        \modelSmall{} (acc\_baseline 0.72 ASAP / 0.88 PERSUADE) --- essay quality is RM-trackable; credit/CV
+        still need a bigger RM.
   \item \todo{RQ4 robustness: does a projection fit on one setting leak back under distribution shift?}
 \end{itemize}
 
@@ -154,9 +157,31 @@ assignment. All are drawn from the same scope below.
   \item Team decided to go \textbf{all-in on Direction~1}; candidate Directions 2--5 deprioritized (see
         the deferred block above).
 \end{itemize}
+\subsection*{2026-07-04 --- education arm built + first results (\modelSmall{}, ASAP $+$ PERSUADE)}
+Built the education arm on \emph{real} essay corpora (PERSUADE 2.0 $+$ ASAP-AES; approach A1 --- header
+proxy, essay body held byte-identical) rather than synthetic answers. Axes: header name $\to$ sex /
+ethnicity; grade level $\to$ age. First results on \modelSmall{}:
+\begin{itemize}
+  \item \textbf{Two large, low-complexity biases replicate across both corpora.} Explicit \textbf{sex}
+        auto-influence 0.88 (ASAP) / 0.95 (PERSUADE) --- stating ``a woman/man'' --- but the name proxy is
+        only 0.24 / 0.35 (for sex, explicit $\gg$ proxy). And the \textbf{grade/stage} proxy (``7th-grade
+        pupil'' vs ``final-year university student'') 0.96 / 0.97 --- while \emph{stated} age is near-zero
+        (0.37 / 0.03); the RM rewards the \emph{identical} essay far more when it is attributed to a
+        university student. Both collapse under the $\alpha$-sweep ($\to \sim$0.1) $\Rightarrow$ low-complexity.
+  \item \textbf{Ethnicity is weak and template-direction-unstable} on both corpora (the two templates prefer
+        opposite poles, so the aggregate washes out) --- needs more templates/names before any claim.
+  \item \textbf{\crossinf{} is now interpretable:} acc\_baseline 0.72 (ASAP) / 0.88 (PERSUADE) $>0.6$ ---
+        essay quality is what the RM natively scores (vs credit 0.51 / CV 0.59). But CI\_base $\approx$ CI\_ref
+        on every axis $\Rightarrow$ a symmetric \emph{marker main-effect}, not a protected-attribute-specific
+        reliability harm at 0.6B (a legitimate null to revisit at 8B).
+\end{itemize}
+Runner generalizations: \texttt{run\_experiment --dataset-source} now honored under \texttt{--config};
+\texttt{run\_demographic\_battery}/\texttt{run\_crossinfluence} made domain-aware. Deferred: A2
+identity-in-argument; PERSUADE real demographic labels / group-level; explicit-ethnicity template
+instability; disability axis; the 8B RM.
 \subsection*{\today}
-\todo{Move settled results up into progress\_*.tex, then into sections/. Build the education substrate
-(edu\_ingest/edu\_render/edu\_dataset $+$ domain registry entry $+$ ethnicity/disability markers).}
+\todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
+\texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}
 
 \bibliographystyle{plainnat}
 \bibliography{shared/references}

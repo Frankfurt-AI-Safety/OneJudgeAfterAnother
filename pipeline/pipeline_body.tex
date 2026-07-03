@@ -7,17 +7,21 @@
 \todo{Credit: German Credit \citep{germancredit} (CC-BY-4.0), decoded A-codes $\to$ neutral financial
 profile; sex+marital entanglement motivates synthetic injection. Hiring: synthetic CVs (CandidateRecord
 with a strong/weak \texttt{qualified} label, the quality ground truth for \crossinf{}). Education
-(grading, \emph{planned}): synthetic graded student answers (AssignmentRecord with a strong/weak
-\texttt{high\_quality} label --- the grading analog of CV \texttt{qualified} / credit \texttt{credit\_good};
-strong $=$ well-argued/correct answer, weak $=$ poor/incorrect).}
+(grading, \emph{built}): \textbf{real essay corpora} held byte-identical --- PERSUADE 2.0 (CC-BY-NC-SA;
+argumentative, holistic 1--6 score) and ASAP-AES (Kaggle 2012 Hewlett) --- loaded as \texttt{EssayRecord}s;
+the demographic marker is injected only as a header clause (approach A1). \texttt{high\_quality} is
+thresholded from the holistic score (strong $=$ top tier / weak $=$ bottom, middle dropped) --- the
+\crossinf{} quality ground truth, which the RM \emph{does} track for essays (unlike credit/CV).}
 
 \subsection{Marker injection (single-axis)}
 \todo{Neutral slot-templated renderer with one \texttt{\{marker\}} slot; sex/age/family-status +
 the sex$\times$age$\times$family intersection; explicit and proxy (name / graduation-year / career-gap)
 encodings; the intersection clause composes the three marginal clauses (enables the additivity test).
-For the education domain: add \textbf{ethnicity} (name-proxy, Haim et al.\ lineage \citep{haim2024whatsinaname})
-and \textbf{disability} (explicit + proxy) axes as shared single-axis markers (also usable by credit/CV);
-subject noun parameterized (``the applicant'' $\to$ ``the student'').}
+For the education domain (A1, header injected over real essays): \textbf{name} $\to$ sex $+$
+\textbf{ethnicity} (a name grid coded to origin, Haim et al.\ lineage \citep{haim2024whatsinaname}); and
+\textbf{grade\_level} (7th-grade pupil vs final-year university student) as an age/education-stage proxy;
+plus explicit forms. Shared single-axis markers (also usable by credit/CV); the subject noun is
+parameterized (``the applicant'' $\to$ ``the student''). Disability deferred.}
 
 \subsection{Tier-1 structural validation gate}
 \todo{Per matched pair: (1) exact single-slot difference (strip each marker clause $\to$ byte-identical
