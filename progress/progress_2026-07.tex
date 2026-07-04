@@ -127,6 +127,22 @@ Built and run on \modelSmall{} over \textbf{ASAP-AES} and \textbf{PERSUADE 2.0} 
         marker main-effect, \emph{not} a protected-attribute-specific reliability harm at this scale.
 \end{itemize}
 
+\subsection{Positioned-argument (A2) --- standpoint-credibility bias}
+Same real PERSUADE essay + argument, swap only the \emph{author's claimed identity} in a first-person
+positionality sentence at the conclusion; decompose each axis (against a no-positionality baseline and
+non-demographic controls) into a \emph{main effect} and an \emph{identity gap}. Result on \modelSmall{}:
+\begin{itemize}
+  \item \textbf{General sycophancy for lived experience:} adding \emph{any} ``I have lived this'' appeal
+        raises reward (main effect $+0.14$ to $+0.38$), even for hobby/pet personas.
+  \item \textbf{A genuine, demographic-specific pro-marginalized bias:} the identity gap is large on the
+        demographic axes (sex $+0.20$, race $+0.22$, class $+0.36$, origin $+0.28$, \textbf{intersection
+        $+0.70$} for a working-class Black woman vs an affluent white man) while the clean neutral controls
+        are $\approx 0$ (gardener-vs-cyclist $-0.01$, dog-vs-cat $+0.02$). The RM over-rewards the identical
+        argument when voiced from a marginalized standpoint.
+  \item \textbf{Caution:} auto-influence saturates (direction, not magnitude); we report the identity-gap
+        magnitude against clean controls.
+\end{itemize}
+
 \section{Decisions this cycle}
 \label{sec:decisions}
 \begin{itemize}

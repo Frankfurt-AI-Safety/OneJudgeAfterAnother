@@ -176,9 +176,35 @@ ethnicity; grade level $\to$ age. First results on \modelSmall{}:
         reliability harm at 0.6B (a legitimate null to revisit at 8B).
 \end{itemize}
 Runner generalizations: \texttt{run\_experiment --dataset-source} now honored under \texttt{--config};
-\texttt{run\_demographic\_battery}/\texttt{run\_crossinfluence} made domain-aware. Deferred: A2
-identity-in-argument; PERSUADE real demographic labels / group-level; explicit-ethnicity template
-instability; disability axis; the 8B RM.
+\texttt{run\_demographic\_battery}/\texttt{run\_crossinfluence} made domain-aware. Deferred: PERSUADE real
+demographic labels / group-level; explicit-ethnicity template instability; disability axis; the 8B RM.
+
+\subsection*{2026-07-04 --- positioned-argument (A2) arm: standpoint-credibility bias}
+A2 makes identity \emph{load-bearing for the argument's authority}: a first-person positionality sentence
+grounds a real PERSUADE essay's conclusion in the author's lived experience, and we swap only the claimed
+identity (``as \{a woman / a man / a Black person / \dots / a working-class Black woman / an affluent white
+man\} who has lived these realities firsthand, I am convinced this is the right conclusion''), holding the
+essay body byte-identical. Injection position is a config parameter (v1 $=$ conclusion). We add a
+\textbf{non-demographic control} family (gardener/cyclist, dog/cat, rural/city) and a \textbf{neutral
+(no-positionality) baseline}, and decompose each axis into a \emph{main effect} (any standpoint vs neutral)
+and a magnitude \emph{identity gap} ($\Delta_a-\Delta_b$). \textbf{Result (\modelSmall{}, PERSUADE,
+$n=160$):}
+\begin{itemize}
+  \item \textbf{General sycophancy for lived experience:} the main effect is positive on every axis
+        ($+0.14$ to $+0.38$) --- the RM rewards \emph{any} ``I have lived this'' appeal over the plain essay,
+        even hobby/pet.
+  \item \textbf{A genuine, demographic-specific pro-marginalized bias:} the identity gap is large on the
+        demographic axes (sex $+0.20$, race $+0.22$, class $+0.36$, origin $+0.28$, \textbf{intersection
+        $+0.70$}) while the \emph{clean neutral controls are $\approx 0$} (gardener-vs-cyclist $-0.01$,
+        dog-vs-cat $+0.02$). Direction is pro-marginalized (woman$>$man, Black$>$white, working-class$>$
+        wealthy, immigrant$>$native), strongest for the working-class Black woman.
+  \item \textbf{Methodological caution:} auto-influence \emph{saturates} (direction-consistency, not
+        magnitude --- a trivial $+0.09$ gap gave auto-influence $0.80$), and an authority-tinged control
+        (``retired teacher'') is contaminated. \textbf{Report the identity-gap magnitude against clean
+        controls, not auto-influence, for A2.}
+\end{itemize}
+Deferred: opening/middle/random positions; referee (policy-model-grades $\to$ RM-rewards) framing; ASAP
+replication; social-issue corpus where standpoint is topic-intrinsic; 8B RM.
 \subsection*{\today}
 \todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
 \texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}
