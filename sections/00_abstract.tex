@@ -1,4 +1,16 @@
 % !TEX root = ../main.tex
-\todo{Abstract. One paragraph: reward models as the shared upstream evaluator; we ask whether
-EU-protected demographic (and intersectional) biases are inherited, low- vs high-complexity, and
-removable by mechanistic reward shaping --- and whether that removal is robust (the reward-vs-representation gap).}
+Language reward models (RMs) are the load-bearing evaluator of modern alignment: one preference model is
+reused across RLHF, best-of-$N$ selection, and data filtering, so a bias in that single component propagates
+and compounds. We ask whether RMs inherit EU-protected demographic and intersectional biases; whether such
+bias is \emph{low-complexity} (a near-linear direction that null-space projection removes at near-zero cost
+to accuracy) or \emph{high-complexity} (entangled with legitimate signal); and, crucially, whether removal is
+\emph{robust}. Extending the mechanistic reward-shaping method of \citet{fein2026onebias} to protected
+attributes, and adding a closed-form concept-erasure test (\leace{} \citep{belrose2023leace} followed by a
+non-linear probe, the \taco{} signature of entanglement \citep{taco2024}), we run matched-pair contrastive
+experiments across three EU AI Act high-risk domains: credit, hiring, and essay grading. Preliminary results
+on a 0.6B RM show that demographic biases are large and behaviourally removable from the reward scalar, yet
+the underlying concept remains \emph{non-linearly recoverable after optimal linear erasure}: null-space
+projection fixes the reward, not the representation. On essay grading the reliability-harm metric becomes
+interpretable, and a novel \emph{standpoint-credibility} effect emerges, in which the RM rewards an identical
+argument more when it is voiced from a marginalized standpoint. We are scaling the study to eleven production
+reward models from 0.6B to 70B.

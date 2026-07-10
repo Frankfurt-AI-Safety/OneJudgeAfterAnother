@@ -1,6 +1,11 @@
 % !TEX root = ../main.tex
 \section{Data-Creation Pipeline (Overview)}
 \label{sec:pipeline}
-\todo{Condensed overview of the matched-pair generator: synthetic marker injection over German Credit
-(credit) and synthetic CVs (hiring); single-axis marker injection (sex/age/family-status/intersection,
-explicit+proxy); Tier-1 structural validation gate. Full detail in Appendix~\ref{app:pipeline}.}
+A single matched-pair generator serves all domains through a domain registry. Credit decodes German Credit
+\citep{germancredit} into neutral financial profiles; hiring uses synthetic CVs carrying a strong/weak
+qualification label; education grades \emph{real} student essays (PERSUADE 2.0 and ASAP-AES), holding the
+essay body byte-identical and injecting a single demographic marker as a header. Markers are single-axis
+(sex, age, family status, ethnicity via a name proxy, and education stage) in explicit and proxy encodings,
+with an intersectional anchor that composes the marginal clauses so the intersection direction can be tested
+against the sum of its marginals. A Tier-1 structural gate enforces an exact single-slot difference and
+length and readability parity, discarding failures. Full detail in Appendix~\ref{app:pipeline}.

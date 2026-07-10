@@ -1,12 +1,24 @@
 % !TEX root = ../main.tex
 \section{Introduction}
 \label{sec:intro}
-\todo{Motivation: the \rewardmodel{} is the most-reused, least-observed component in the alignment
-stack (RLHF, best-of-N, data filtering); a bias here propagates and compounds. EU AI Act Annex III
-(hiring, credit) hook. Contribution: carry the mechanistic low/high-complexity lens
-\citep{fein2026onebias} into protected-attribute bias, and add the \leace{}/\taco{} robustness check.}
+The reward model is the most reused and least directly observed component of the alignment stack. A single
+preference model, trained once from human comparisons, is subsequently consulted as the arbiter of quality
+across RLHF policy optimization, best-of-$N$ inference-time selection, iterative rejection-sampling data
+filtering, and automated evaluation. A systematic error in that one component is therefore not a local defect
+but an upstream point of failure whose effects surface, and compound, across many downstream behaviors. The
+EU AI Act's high-risk regime (Annex~III) names recruitment and creditworthiness as high-risk uses and
+requires technical robustness against biased outcomes on protected characteristics \citep{euaiact2024}, yet
+most fairness auditing targets the deployed policy's outputs rather than the evaluator that shaped them.
+\citet{fein2026onebias} supply a mechanistic instrument that, for capability- and style-related biases,
+distinguishes biases removable by a cheap post-hoc edit from those entangled with legitimate signal, but they
+never apply it to protected attributes. This paper carries that low- versus high-complexity lens into the
+protected-attribute setting and strengthens it with a concept-erasure robustness check.
 
 \paragraph{Research questions.}
-\todo{RQ0 replication; RQ1 which protected attributes are inherited (+ intersectional RQ1.1);
-RQ2 low vs high complexity; RQ3 removable by mechanistic reward shaping; RQ4 robustness/generalization
-of the intervention (the reward-vs-representation gap).}
+\textbf{RQ0} (replication): do the base-paper interventions reproduce, and does the stronger
+\leace{}/non-linear-probe test alter the low/high-complexity verdict? \textbf{RQ1}: which EU-protected
+attributes does an \rewardmodel{} exhibit a measurable bias for on otherwise-identical high-risk content, and
+is the intersectional effect distinct and non-additive? \textbf{RQ2}: is that bias low- or high-complexity,
+distinguishing the reward-scalar level from the representation level? \textbf{RQ3}: does mechanistic reward
+shaping reduce the harm without degrading legitimate accuracy? \textbf{RQ4}: is the removal robust, or does
+the concept leak back --- the reward-vs-representation gap?

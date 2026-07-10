@@ -1,29 +1,53 @@
 % !TEX root = ../main.tex
 \section{Results}
 \label{sec:results}
-
-% This section demonstrates the single-source-of-truth numbers macros (shared/numbers.tex).
-% Every value below is pulled from the experiment JSONs; never hand-edit a number here.
+All values are on \modelSmall{}; the larger reward models are in progress. Numbers pulled from the experiment
+JSONs are typeset from single-source macros and never hand-edited.
 
 \subsection{Direct scoring (auto-influence)}
-On CV, explicit-sex \autoinf{} is \autoInflSexCVbase{}, collapsing to \autoInflSexCVnull{} when the
-\diffmean{} direction is nulled; the intersection behaves likewise (\autoInflIntersectionCVbase{} $\to$
-\autoInflIntersectionCVnull{}). The intersection is partially additive (cosine \additivityCosCV{}).
-\todo{expand; add credit numbers and the proxy $>$ explicit CV twist
-(\batteryAgeExplicitCV{} vs \batteryAgeProxyCV{}; \batteryFamilyExplicitCV{} vs \batteryFamilyProxyCV{}).}
+On the hiring (CV) domain, explicit-sex \autoinf{} is \autoInflSexCVbase{}, collapsing to
+\autoInflSexCVnull{} when the \diffmean{} direction is nulled; the sex$\times$age$\times$family intersection
+behaves likewise (\autoInflIntersectionCVbase{} $\to$ \autoInflIntersectionCVnull{}) and is only
+\emph{partially additive} (cosine with the summed marginals \additivityCosCV{}), i.e.\ a genuine interaction.
+Credit replicates the pattern (sex \autoInflSexCreditbase{} $\to$ \autoInflSexCreditnull{}). A robustness
+battery reveals an encoding twist on CVs: the RM reacts more to realistic \emph{proxy} cues than to bald
+statements for age and family status (age \batteryAgeExplicitCV{} explicit vs \batteryAgeProxyCV{} proxy;
+family \batteryFamilyExplicitCV{} vs \batteryFamilyProxyCV{}). All effects are behaviourally low-complexity:
+the $\alpha$-sweep drives them to near zero.
 
-\subsection{Cross-influence}
-\todo{acc\_baseline \crossAccBaselineCV{} (CV) --- not yet interpretable on \modelSmall{}; motivates scaling.}
+\subsection{Cross-influence (reliability harm)}
+On credit and CV the metric is not yet interpretable on \modelSmall{} (acc\_baseline \crossAccBaselineCV{} on
+CV): a general chat RM does not track loan risk or CV quality, so the strong/weak label is not a valid ground
+truth. On \emph{essay grading}, where the RM does track answer quality, cross-influence becomes interpretable
+(acc\_baseline $0.72$ on ASAP, $0.88$ on PERSUADE), though the observed shift is a symmetric marker
+main-effect rather than a protected-attribute-specific harm at this scale.
 
-\subsection{Decision-response (does the RM reward a discriminatory verdict?)}
-Discriminatory-verdict win-rate is \decisionDiscWinSex{} (sex) and \decisionDiscWinAge{} (age), but rises
-to \decisionDiscWinFamily{} (family) and \decisionDiscWinIntersection{} (intersection). \todo{evasion control.}
+\subsection{Which biases, across domains}
+The education domain replicates the direct-scoring picture on real essays: stating sex is a large bias
+(auto-influence $0.88$ on ASAP, $0.95$ on PERSUADE), and an education-stage proxy is the largest single effect
+($0.96$ / $0.97$ --- the RM rewards the identical essay far more when it is attributed to a university student
+rather than a school pupil), while name-based ethnicity is weak and template-unstable.
 
-\subsection{Reasoning vs fairness}
-The RM rewards correct reasoning (\reasonCorrectnessPL{} on parental-leave) essentially equally on the
-non-demographic commute control (\reasonCorrectnessCommute{}) --- a domain-general effect, not fairness.
+\subsection{Reasoning vs.\ fairness}
+Modelling the RM's scored \emph{response} rather than the applicant, the RM rewards factually correct causal
+reasoning (\reasonCorrectnessPL{} on a parental-leave premise) essentially equally on a non-demographic
+commute control (\reasonCorrectnessCommute{}): a domain-general reasoning-quality effect, not demographic
+fairness. Consistently, the decision-response discriminatory-win-rate is near zero for sex
+(\decisionDiscWinSex{}) and age (\decisionDiscWinAge{}) but rises on the legally salient family and
+intersectional axes (\decisionDiscWinFamily{}, \decisionDiscWinIntersection{}).
 
-\subsection{LEACE + non-linear probe (complexity)}
-After \leace{}, the linear probe drops to \erasureLinearLeaceCorrPL{} while the MLP still recovers at
-\erasureMlpLeaceCorrPL{}: the concept is linearly erasable but non-linearly recoverable (entangled).
-\todo{state the reward-vs-representation consequence.}
+\subsection{Standpoint-credibility (positioned arguments)}
+When the same argument is grounded in a stated first-person identity, the RM rewards it more from a
+marginalized standpoint: the intersectional identity gap (reward of the marked vs.\ reference pole, relative
+to a no-standpoint baseline) is about $+0.70$, with sex $+0.20$, race $+0.22$, class $+0.36$, and origin
+$+0.28$, while genuinely neutral non-demographic controls (hobby, pet, region) sit at approximately zero. The
+effect is robust across injection position, corpus, three paraphrasings, and a neutral (non-endorsing)
+stance, and sits on top of a general reward for any lived-experience appeal.
+
+\subsection{Complexity: \leace{} + non-linear probe}
+The decisive test: after \leace{}, the linear probe for the reasoning-correctness concept drops to
+\erasureLinearLeaceCorrPL{} (chance, by construction) while an MLP still recovers it at
+\erasureMlpLeaceCorrPL{}. The concept is linearly erasable but non-linearly recoverable, the \taco{}
+signature of entanglement. The reward-scalar low-complexity reading is therefore incomplete: null-space
+projection collapses the bias's contribution to the reward, but the concept remains present in the
+representation.

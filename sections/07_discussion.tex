@@ -1,6 +1,12 @@
 % !TEX root = ../main.tex
 \section{Discussion}
 \label{sec:discussion}
-\todo{The reward-vs-representation gap: \nullspace{} removes the bias's contribution to the reward
-scalar but not the entangled concept from the representation --- debiasing the reward $\neq$ debiasing
-the model. Implications for compliance-grade mitigation. Limitations (small RM, templated items).}
+\paragraph{The reward-vs-representation gap.} Our central mechanistic finding is that a bias can be
+simultaneously behaviourally removable and representationally entangled: null-space projection zeroes its
+contribution to the (linear) reward head, yet the concept survives optimal linear erasure and is recovered by
+a non-linear probe. Debiasing the reward is therefore not the same as debiasing the model. For
+compliance-grade mitigation this is a caution: a cheap post-hoc edit can make an evaluator appear unbiased on
+the metric while the discriminating information remains available to any downstream non-linear computation, so
+the \emph{robustness} of the intervention, not its immediate effect, is the load-bearing question.
+\paragraph{Limitations.} Results so far are on a single 0.6B RM and use templated matched-pair items; the
+scaling study across eleven RMs up to 70B, and the standpoint arm on a topic-natural corpus, are in progress.

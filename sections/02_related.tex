@@ -1,8 +1,16 @@
 % !TEX root = ../main.tex
 \section{Related Work}
 \label{sec:related}
-\todo{TRIMMED related work (the verbose version lives in lit\_review.tex). Base paper
-\citep{fein2026onebias}; demographic bias in RMs \citep{kumar2025prefix,song2025groupfairness};
-concept erasure \citep{belrose2023leace,taco2024,ravfogel2020nullitout}; audit lineage
-\citep{tamkin2023discrimeval,haim2024whatsinaname}; legal anchor \citep{euaiact2024}. Gap: no prior
-work applies the mechanistic linear/null-space lens to protected-attribute bias in the \rewardmodel{}.}
+\paragraph{The base paper.} \citet{fein2026onebias} measure biases in high-quality RMs and classify failures
+by complexity: low-complexity biases are approximately linear directions removed by a difference-of-means
+probe plus null-space projection, whereas high-complexity biases (sycophancy, model-style) are co-linear with
+useful signal and resist single-direction removal. \paragraph{Demographic bias in RMs.} \citet{kumar2025prefix}
+introduce prefix bias and the auto- and cross-influence metrics; \citet{song2025groupfairness} study
+group-level demographic parity across RMs. Neither asks whether the bias is linearly removable.
+\paragraph{Concept erasure.} \leace{} \citep{belrose2023leace} is a closed-form, provably optimal linear
+erasure; the \taco{} result \citep{taco2024} shows a concept can survive optimal linear erasure yet remain
+recoverable by a non-linear probe, which we adopt as the operational signature of entanglement; the lineage
+traces to iterative null-space projection \citep{ravfogel2020nullitout}. \paragraph{Audit design.} Our
+matched-pair construction follows the correspondence-audit lineage \citep{tamkin2023discrimeval,haim2024whatsinaname}.
+\paragraph{Gap.} No prior work applies the mechanistic linear / null-space lens to protected-attribute bias
+in the reward model itself.

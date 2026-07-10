@@ -136,6 +136,36 @@ injected on real essays; disability is deferred. All are drawn from the same sco
         Explicit markers are unnatural on these profiles and proxies are noisy.
 \end{itemize}
 
+\section{Reward models under evaluation}
+The reward-model (RM) set is chosen to disentangle whether bias is \emph{dataset-driven} or
+\emph{architecture-driven}, with controlled comparisons built in: the same Skywork-V2 training data across
+different base architectures (Llama-8B vs Qwen3-8B); the same training recipe across a large size gap (the
+AllenAI RB2 8B vs 70B); distinct RM \emph{types} (a DeBERTa encoder RM and a quantile/distributional QRM);
+and a frontier 70B flagship. All RMs up to 8B run locally on Apple Silicon (MLX); 14B and larger are run on
+rented GPUs (see the compute-budget note). Everything routes through the same probe / null-space /
+LEACE pipeline, unchanged per model.
+\begin{center}\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llllp{4.1cm}@{}}
+\hline
+\textbf{Reward model} & \textbf{Params} & \textbf{Base} & \textbf{Compute} & \textbf{Role in the comparison}\\
+\hline
+Skywork-Reward-V2-Qwen3-0.6B        & 0.6B & Qwen3   & local  & pilot; whole pipeline validated here\\
+OpenAssistant deberta-v3-large-v2   & 0.4B & DeBERTa & local  & encoder RM, pair-format; architecture outlier\\
+Skywork-Reward-V2-Llama-3.1-8B      & 8B   & Llama-3.1 & local & top open RM on RewardBench-2\\
+Skywork-Reward-V2-Qwen3-8B          & 8B   & Qwen3   & local  & same Skywork data, different base (arch effect)\\
+AllenAI Llama-3.1-8B-Instruct-RM-RB2& 8B   & Llama-3.1 & local & different recipe; 8B half of the scaling pair\\
+Skywork-Reward-Gemma-2-27B          & 27B  & Gemma-2 & rented & Skywork data on Gemma\\
+QRM-Gemma-2-27B (nicolinho)         & 27B  & Gemma-2 & rented & quantile/distributional RM (RM-type effect)\\
+Qwen-2.5-Nemotron-32B-Reward        & 32B  & Qwen2.5 & rented & Nemotron recipe\\
+Qwen-3-Nemotron-32B-Reward          & 32B  & Qwen3   & rented & Nemotron recipe, newer base\\
+AllenAI Llama-3.1-70B-Instruct-RM-RB2& 70B & Llama-3.1 & rented & same recipe as the AllenAI 8B (controlled scaling)\\
+Llama-3.3-Nemotron-70B-Reward       & 70B  & Llama-3.3 & rented & frontier flagship (state-of-the-art open 70B)\\
+\hline
+\end{tabular}
+\end{center}
+\emph{Eleven RMs spanning 0.6B--70B and the Llama / Qwen / Gemma / DeBERTa families. Exact Hugging Face
+paths for the NVIDIA Nemotron models are to be confirmed against the current releases.}
+
 \section{Open questions / things we are chasing}
 \begin{itemize}
   \item \todo{Does the reasoning-correctness effect survive on a larger / instruct RM, and does

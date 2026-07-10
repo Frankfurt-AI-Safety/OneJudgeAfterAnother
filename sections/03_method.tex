@@ -1,6 +1,15 @@
 % !TEX root = ../main.tex
 \section{Method}
 \label{sec:method}
-\todo{Design grammar: matched-pair contrastive design; \autoinf{} vs \crossinf{}; explicit vs proxy
-encoding. Mechanistic step: \diffmean{} direction, \nullspace{}, low/high-complexity classification.
-\leace{} + non-linear-probe (\taco{}) as the stronger complexity discriminator (see Sec.~\ref{sec:results}).}
+\paragraph{Design grammar.} Every effect is measured on matched pairs that hold content fixed and vary only
+the target attribute, so content-driven activation cancels in the difference. We report two metrics
+\citep{kumar2025prefix}: \autoinf{} (preference shift on equal-quality items) and \crossinf{} (accuracy
+degradation when the attribute is attached to the weaker option, a reliability harm that maps onto the Act's
+concern with biased false positives and negatives). Each attribute is tested in an \emph{explicit} (stated)
+and a \emph{proxy} (inferred) encoding. \paragraph{Mechanistic step.} From the matched pairs we estimate a
+\diffmean{} direction and sweep the null-space projection strength $\alpha$; a bias is \emph{reward-scalar}
+low-complexity if nulling removes it at near-zero cost to legitimate accuracy. \paragraph{Representation-level
+test.} Because null-space projection and a linear probe only interrogate the linear subspace, we additionally
+apply \leace{} (optimal linear erasure) and then train a non-linear (MLP) probe on the erased
+representation. A concept that is linearly erasable but non-linearly recoverable is entangled
+(high-complexity) regardless of what the reward scalar shows --- the discriminator at the heart of this work.
