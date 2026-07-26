@@ -23,7 +23,7 @@ entangled in the representation and leaking back under new conditions?
 
 \subsection{RQ0 --- Replication, and re-testing the base paper's own complexity claims}
 Two limbs. \textbf{(a)} Do the base-paper low-complexity interventions (length, uncertainty, position)
-reproduce on the five \RMs{}, with RewardBench-2 non-inferiority \citep{fein2026onebias}? \textbf{(b)}
+reproduce on the eleven \RMs{}, with RewardBench-2 non-inferiority \citep{fein2026onebias}? \textbf{(b)}
 Apply \leace{} $+$ non-linear-probe (\taco{}) to the base paper's \emph{own} identified biases (the
 ``low-complexity'' length/uncertainty/position and the ``high-complexity'' sycophancy/model-style): does
 \nullspace{} remove the concept from the \emph{representation}, or only its contribution to the reward
@@ -37,7 +37,7 @@ otherwise-identical high-risk decision content across three Annex-III domains --
 (CV screening), credit scoring, and education (grading student assignments/tests)? Measured on
 matched-pair contrastive items under explicit and proxy encodings, via \autoinf{} (preference shift)
 and \crossinf{}
-(reliability harm) \citep{kumar2025prefix}, across the five \RMs{}. We report magnitude and removability,
+(reliability harm) \citep{kumar2025prefix}, across the eleven \RMs{}. We report magnitude and removability,
 not a betted direction.
 
 \paragraph{RQ1.1 --- Intersectional.}
@@ -78,10 +78,13 @@ held-out split/domain B; cross-domain and cross-encoding transfer.) The three do
 recruitment (CV), and education (grading) --- give us a genuine cross-domain transfer test.
 
 \subsection{RQ6 --- Cross-model consistency: dataset- vs architecture-driven}
-Is the bias --- magnitude and low/high-complexity class --- consistent across the five \RMs{}, or does it
-vary by model? Our set is a natural experiment: the three Skywork-V2 models share Skywork's preference
-data but differ in base architecture/size (Llama-8B, Qwen3-8B, Qwen3-0.6B), while AllenAI-Llama and
-OpenAssistant-DeBERTa add cross-recipe diversity. If the bias clusters by \emph{training data} it is
+Is the bias --- magnitude and low/high-complexity class --- consistent across the eleven \RMs{}, or does it
+vary by model? Our set is a natural experiment with the controlled comparisons built in: the Skywork-V2
+models share Skywork's preference data but differ in base architecture/size (Llama-3.1-8B, Qwen3-8B,
+Qwen3-0.6B, Gemma-2-27B), the AllenAI RB2 pair holds the recipe fixed across 8B and 70B (a clean size
+comparison), the two Nemotron-32B models hold the recipe fixed across base generations, and
+OpenAssistant-DeBERTa (encoder) plus QRM-Gemma (quantile/distributional) vary the RM \emph{type} itself.
+If the bias clusters by \emph{training data} it is
 dataset-driven; if by \emph{architecture/family}, architecture-driven \citep{kumar2025prefix}. This
 locates where mitigation must live (upstream data governance vs model-internal editing).
 
@@ -99,11 +102,6 @@ locates where mitigation must live (upstream data governance vs model-internal e
 
 \subsection{Deferred / potential future directions}
 \begin{itemize}
-  \item \textbf{Other candidate directions deprioritized (team decision).} We are going \emph{all-in on
-        Direction~1} (intersectional protected-attribute bias in high-risk decisions). The other candidate
-        directions --- dialect/register bias (D2), political content-vs-style (D3), generational/age
-        register (D4), and the open slot (D5) --- are parked; they reuse the same design grammar and can be
-        revived later, but are out of scope for this cycle.
   \item Group-level (demographic-parity) framing \citep{song2025groupfairness} as a complement to the
         same-content counterfactual design --- do the two fall on opposite sides of the complexity
         boundary? \emph{Deferred}: out of scope for now, since it needs a \emph{new data pipeline} (group
@@ -171,10 +169,44 @@ paths for the NVIDIA Nemotron models are to be confirmed against the current rel
   \item \todo{Does the reasoning-correctness effect survive on a larger / instruct RM, and does
         \crossinf{} become interpretable (acc\_baseline $>0.6$)? Currently \crossAccBaselineCV{} on \modelSmall{}.}
         \emph{Partly resolved:} on the \textbf{education} domain \crossinf{} \emph{is} interpretable even on
-        \modelSmall{} (acc\_baseline 0.72 ASAP / 0.88 PERSUADE) --- essay quality is RM-trackable; credit/CV
-        still need a bigger RM.
-  \item \todo{RQ4 robustness: does a projection fit on one setting leak back under distribution shift?}
+        \modelSmall{} (acc\_baseline \crossAccBaselineEduAsap{} ASAP / \crossAccBaselineEduPersuade{} PERSUADE)
+        --- essay quality is RM-trackable; credit/CV still need a bigger RM.
+  \item \todo{RQ5 robustness: does a projection fit on one setting leak back under distribution shift?}
+        No transfer experiment has been run yet; the three domains give us the substrate for it.
+  \item \textbf{\leace{} on the demographic directions.} The erasure/non-linear-probe test has so far only
+        been run on the \emph{reasoning} concepts of the model-response arm (hiring domain). Running it on the
+        demographic directions is what would establish the reward-vs-representation gap for protected
+        attributes directly. Until then the abstract/discussion claim is scoped to the reasoning concept.
+  \item \textbf{Accuracy guardrail not yet reported.} RQ0/RQ4 promise RewardBench-2 non-inferiority as the
+        ``without degrading legitimate accuracy'' check; it has not been run. Note that on credit and CV the
+        RM is at chance on quality (\crossAccBaselineCredit{} / \crossAccBaselineCV{}), so in-domain there is
+        no accuracy signal to preserve --- at present the trade-off is only measurable on education.
+  \item \textbf{Forced-choice pairwise readout.} Listed as the secondary readout in the design grammar but
+        never implemented: it is out-of-distribution for a scalar RM and needs a generative judge, so it is
+        deferred rather than dropped.
+  \item \textbf{RQ0b --- \leace{} retrofit to the base paper's own biases} (length, position, uncertainty).
+        Framed as a contribution back to the base method; not yet run.
 \end{itemize}
+
+\subsection*{Validity workstream (scheduled)}
+Three checks on whether our \emph{instruments} measure what we claim, to be run as one block. These bear on
+how much of the A1 marker evidence survives, so they are scheduled ahead of further breadth.
+\begin{enumerate}
+  \item \textbf{Real vs.\ synthetic marker validity --- promote from footnote to finding.} On the one real-field
+        run (German Credit \texttt{personal\_status\_sex}, $n{=}142$/group, probe acc $0.92$) the real-field
+        direction is \emph{anti}-correlated with our injected-marker directions: $\cos = -0.216$ against the
+        synthetic family-status direction and $-0.297$ against the synthetic sex direction, with a real-field
+        reward gap of $\approx 0$. Plan: extend to PERSUADE~2.0's unused real race/sex/ELL labels and to
+        further credit fields; report $\cos(\text{real}, \text{synthetic})$ per axis; treat a persistent
+        negative or near-zero cosine as a result \emph{about the injected-marker method itself}.
+  \item \textbf{Bias-in-Bios real CVs} to replace the fully synthetic hiring substrate, which currently
+        carries the erasure, reasoning, and decision arms --- i.e.\ our most load-bearing arms sit on the
+        least externally valid data.
+  \item \textbf{Name-pool validation} against Bertrand--Mullainathan / Haim et al.\ before any publishable
+        ethnicity number. \texttt{markers.py} already self-flags the pools as an unvalidated starter set, and
+        ethnicity is exactly the axis that is template-unstable across corpora
+        (\eduEthnicityExplicitAsap{} ASAP vs \eduEthnicityExplicitPersuade{} PERSUADE).
+\end{enumerate}
 
 \section{Log}
 \subsection*{2026-07-02 --- domain scope \& direction decisions}
@@ -184,8 +216,9 @@ paths for the NVIDIA Nemotron models are to be confirmed against the current rel
         (strong/weak $=$ the \crossinf{} quality label, grading analog of CV \texttt{qualified} / credit
         \texttt{credit\_good}); axes $=$ sex $+$ ethnicity (name-proxy) $+$ disability. \emph{Docs updated
         here; substrate/code not yet built --- results pending.}
-  \item Team decided to go \textbf{all-in on Direction~1}; candidate Directions 2--5 deprioritized (see
-        the deferred block above).
+  \item Team decided to make \textbf{intersectional protected-attribute bias in high-risk decisions the
+        project's sole focus}; the other candidate tracks under consideration at the time (dialect/register,
+        political content-vs-style, generational register) were closed out rather than run in parallel.
 \end{itemize}
 \subsection*{2026-07-04 --- education arm built + first results (\modelSmall{}, ASAP $+$ PERSUADE)}
 Built the education arm on \emph{real} essay corpora (PERSUADE 2.0 $+$ ASAP-AES; approach A1 --- header

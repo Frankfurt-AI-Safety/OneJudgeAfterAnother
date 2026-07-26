@@ -7,6 +7,8 @@ Llama, Qwen, Gemma, and DeBERTa families, chosen to disentangle \emph{dataset-dr
 same-data / different-architecture pairs. Results reported here are on \modelSmall{}; the larger models are
 in progress. \paragraph{Metrics.} \autoinf{}, \crossinf{}, an additivity (cosine) test for the intersection,
 a decision-response discriminatory-win-rate, a reasoning correctness$\times$conclusion $2\times2$, and linear
-versus non-linear probe recoverability after \leace{}. Each cell uses $n{=}\nEval{}$ held-out matched pairs,
-with robustness across encoding, template, and injection position, under a scalar matched-pair readout
-(primary) and a forced-choice pairwise cross-check.
+versus non-linear probe recoverability after \leace{}. Sample sizes are reported per arm rather than globally:
+\nEvalBattery{} held-out matched pairs per battery cell, \crossNCredit{} (credit) / \crossNCV{} (CV) /
+\crossNEduPersuade{} (essays) pairs for \crossinf{}, and \nEvalStandpointPersuade{} (PERSUADE) /
+\nEvalStandpointAsap{} (ASAP) essays for the standpoint arm. Robustness is assessed across encoding, template,
+and injection position, under a scalar matched-pair readout.

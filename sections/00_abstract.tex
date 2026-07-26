@@ -8,9 +8,11 @@ to accuracy) or \emph{high-complexity} (entangled with legitimate signal); and, 
 attributes, and adding a closed-form concept-erasure test (\leace{} \citep{belrose2023leace} followed by a
 non-linear probe, the \taco{} signature of entanglement \citep{taco2024}), we run matched-pair contrastive
 experiments across three EU AI Act high-risk domains: credit, hiring, and essay grading. Preliminary results
-on a 0.6B RM show that demographic biases are large and behaviourally removable from the reward scalar, yet
-the underlying concept remains \emph{non-linearly recoverable after optimal linear erasure}: null-space
-projection fixes the reward, not the representation. On essay grading the reliability-harm metric becomes
+on a 0.6B RM show that demographic biases are large and behaviourally removable from the reward scalar. On the
+model-response arm, where the RM scores a decision \emph{about} an applicant rather than the applicant, the
+reasoning-correctness concept that dominates those scores proves \emph{non-linearly recoverable after optimal
+linear erasure}: null-space projection fixes the reward, not the representation. Extending that erasure test
+to the demographic directions themselves is our immediate next step. On essay grading the reliability-harm metric becomes
 interpretable, and a novel \emph{standpoint-credibility} effect emerges, in which the RM rewards an identical
 argument more when it is voiced from a marginalized standpoint. We are scaling the study to eleven production
 reward models from 0.6B to 70B.

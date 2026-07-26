@@ -19,14 +19,16 @@ the $\alpha$-sweep drives them to near zero.
 On credit and CV the metric is not yet interpretable on \modelSmall{} (acc\_baseline \crossAccBaselineCV{} on
 CV): a general chat RM does not track loan risk or CV quality, so the strong/weak label is not a valid ground
 truth. On \emph{essay grading}, where the RM does track answer quality, cross-influence becomes interpretable
-(acc\_baseline $0.72$ on ASAP, $0.88$ on PERSUADE), though the observed shift is a symmetric marker
-main-effect rather than a protected-attribute-specific harm at this scale.
+(acc\_baseline \crossAccBaselineEduAsap{} on ASAP, \crossAccBaselineEduPersuade{} on PERSUADE), though the
+observed shift is a symmetric marker main-effect rather than a protected-attribute-specific harm at this scale.
 
 \subsection{Which biases, across domains}
 The education domain replicates the direct-scoring picture on real essays: stating sex is a large bias
-(auto-influence $0.88$ on ASAP, $0.95$ on PERSUADE), and an education-stage proxy is the largest single effect
-($0.96$ / $0.97$ --- the RM rewards the identical essay far more when it is attributed to a university student
-rather than a school pupil), while name-based ethnicity is weak and template-unstable.
+(auto-influence \eduSexExplicitAsap{} on ASAP, \eduSexExplicitPersuade{} on PERSUADE), and an education-stage
+proxy is the largest single effect (\eduGradeProxyAsap{} / \eduGradeProxyPersuade{} --- the RM rewards the
+identical essay far more when it is attributed to a university student rather than a school pupil), while
+name-based ethnicity is weak and template-unstable (explicit \eduEthnicityExplicitAsap{} on ASAP vs
+\eduEthnicityExplicitPersuade{} on PERSUADE).
 
 \subsection{Reasoning vs.\ fairness}
 Modelling the RM's scored \emph{response} rather than the applicant, the RM rewards factually correct causal
@@ -38,11 +40,14 @@ intersectional axes (\decisionDiscWinFamily{}, \decisionDiscWinIntersection{}).
 
 \subsection{Standpoint-credibility (positioned arguments)}
 When the same argument is grounded in a stated first-person identity, the RM rewards it more from a
-marginalized standpoint: the intersectional identity gap (reward of the marked vs.\ reference pole, relative
-to a no-standpoint baseline) is about $+0.70$, with sex $+0.20$, race $+0.22$, class $+0.36$, and origin
-$+0.28$, while genuinely neutral non-demographic controls (hobby, pet, region) sit at approximately zero. The
-effect is robust across injection position, corpus, three paraphrasings, and a neutral (non-endorsing)
-stance, and sits on top of a general reward for any lived-experience appeal.
+marginalized standpoint: on PERSUADE the intersectional identity gap (reward of the marked vs.\ reference
+pole, relative to a no-standpoint baseline) is \standpointGapIntersectionPersuade{}, with sex
+\standpointGapSexPersuade{}, race \standpointGapRacePersuade{}, class \standpointGapClassPersuade{}, and
+origin \standpointGapOriginPersuade{}, while genuinely neutral non-demographic controls sit at approximately
+zero (hobby \standpointGapHobbyPersuade{}, pet \standpointGapPetPersuade{}). ASAP replicates the ordering at
+larger magnitude (intersection \standpointGapIntersectionAsap{}). The effect is robust across injection
+position, corpus, three paraphrasings, and a neutral (non-endorsing) stance, and sits on top of a general
+reward for any lived-experience appeal (main effect \standpointMainEffectPersuade{}).
 
 \subsection{Complexity: \leace{} + non-linear probe}
 The decisive test: after \leace{}, the linear probe for the reasoning-correctness concept drops to
@@ -51,3 +56,6 @@ The decisive test: after \leace{}, the linear probe for the reasoning-correctnes
 signature of entanglement. The reward-scalar low-complexity reading is therefore incomplete: null-space
 projection collapses the bias's contribution to the reward, but the concept remains present in the
 representation.
+\emph{Scope.} This test has so far been run only on the reasoning concepts of the model-response arm, in the
+hiring domain. The corresponding test on the \emph{demographic} directions --- which would establish the same
+gap for protected attributes directly --- has not yet been run, and is our immediate next experiment.

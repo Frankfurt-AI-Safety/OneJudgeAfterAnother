@@ -21,8 +21,8 @@ model \emph{response} shows the RM rewards \textbf{correct reasoning}, not fairn
 concepts are \textbf{entangled} --- linearly erasable yet non-linearly recoverable, so nulling fixes the
 \emph{reward}, not the \emph{representation}.
 
-Two scope decisions were taken this cycle (detailed in \S\ref{sec:decisions}): we are going \textbf{all-in
-on Direction~1} (candidate Directions 2--5 parked), and we \textbf{added a third domain, education
+Two scope decisions were taken this cycle (detailed in \S\ref{sec:decisions}): \textbf{protected-attribute
+bias in reward models is now the project's full focus}, and we \textbf{added a third domain, education
 (grading student assignments/tests)}, alongside credit and recruitment (CV) --- now built and run on real
 essay corpora (see Results).
 
@@ -152,9 +152,9 @@ non-demographic controls) into a \emph{main effect} and an \emph{identity gap}. 
 \section{Decisions this cycle}
 \label{sec:decisions}
 \begin{itemize}
-  \item \textbf{All-in on Direction~1} (intersectional protected-attribute bias in high-risk decisions).
-        Candidate Directions 2--5 (dialect/register, political content-vs-style, generational register, and
-        the open slot) are parked; they reuse the same design grammar and can be revived later.
+  \item \textbf{Full focus on intersectional protected-attribute bias in high-risk decisions.} This is now
+        the project, not one track within it; earlier candidate tracks (dialect/register, political
+        content-vs-style, generational register) are closed out rather than run in parallel.
   \item \textbf{Third domain --- education (grading), built \& run.} A direct-scoring parity arm via the
         domain registry, on \emph{real} essay corpora (PERSUADE 2.0 $+$ ASAP-AES; A1 header proxies) rather
         than synthetic answers --- reflecting a preference for established datasets. Axes: name $\to$
@@ -163,7 +163,7 @@ non-demographic controls) into a \emph{main effect} and an \emph{identity gap}. 
 
 \section{Next steps}
 
-\subsection{Research --- Direction~1}
+\subsection{Research}
 Status: pipeline $+$ four experiment arms, all on \modelSmall{}, committed and tested.
 \begin{itemize}
   \item \textbf{Extend the education arm}: the explicit-ethnicity template instability, the deferred
@@ -175,9 +175,26 @@ Status: pipeline $+$ four experiment arms, all on \modelSmall{}, committed and t
   \item \textbf{Scoring readout}: add forced-choice pairwise as a robustness cross-check on the scalar gap.
   \item \textbf{Retrofit \leace{}/\taco{}} to the demographic/profile directions \emph{and} the base paper's
         own headline biases (the robustness check above).
-  \item LLM-generated verdicts $+$ explicit evasion scoring (referee arm); Bias-in-Bios real CVs (external
-        validity); the other four RMs.
+  \item LLM-generated verdicts $+$ explicit evasion scoring (referee arm); the other ten RMs.
 \end{itemize}
+
+\subsection{Validity workstream (scheduled)}
+Three checks on whether our \emph{instruments} measure what we claim. They are scheduled as one block, ahead
+of further breadth, because they bear on how much of the A1 marker evidence survives.
+\begin{enumerate}
+  \item \textbf{Real vs.\ synthetic marker validity.} On the one real-field run (German Credit
+        \texttt{personal\_status\_sex}, $n{=}142$/group) the real-field direction is \emph{anti}-correlated
+        with our injected markers: $\cos = -0.216$ vs the synthetic family-status direction, $-0.297$ vs the
+        synthetic sex direction, with a real-field reward gap of $\approx 0$. Extend to PERSUADE~2.0's unused
+        real race/sex/ELL labels and further credit fields, and report $\cos(\text{real},\text{synthetic})$
+        per axis. A persistent negative or near-zero cosine is a finding about the marker method itself, and
+        the highest-information item we have.
+  \item \textbf{Bias-in-Bios real CVs} to replace the synthetic hiring substrate --- which is currently the
+        substrate carrying the erasure, reasoning, and decision arms.
+  \item \textbf{Name-pool validation} against Bertrand--Mullainathan / Haim et al.\ before any publishable
+        ethnicity number; the pools are self-flagged as an unvalidated starter set and ethnicity is the axis
+        that is template-unstable across corpora.
+\end{enumerate}
 
 \subsection{Organizational --- compute for the larger RMs}
 The pipeline is finished and validated locally on \modelSmall{} (MLX); the scientific payoff now needs

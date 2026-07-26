@@ -18,7 +18,12 @@ protected-attribute setting and strengthens it with a concept-erasure robustness
 \textbf{RQ0} (replication): do the base-paper interventions reproduce, and does the stronger
 \leace{}/non-linear-probe test alter the low/high-complexity verdict? \textbf{RQ1}: which EU-protected
 attributes does an \rewardmodel{} exhibit a measurable bias for on otherwise-identical high-risk content, and
-is the intersectional effect distinct and non-additive? \textbf{RQ2}: is that bias low- or high-complexity,
-distinguishing the reward-scalar level from the representation level? \textbf{RQ3}: does mechanistic reward
-shaping reduce the harm without degrading legitimate accuracy? \textbf{RQ4}: is the removal robust, or does
-the concept leak back --- the reward-vs-representation gap?
+is the intersectional effect distinct and non-additive? \textbf{RQ2} (downstream harm): when the \rewardmodel{}
+scores a \emph{decision response} rather than the applicant, would it reward a policy model that
+discriminates --- the RLHF / best-of-$N$ propagation story? \textbf{RQ3}: is that bias low- or
+high-complexity, distinguishing the reward-scalar level from the representation level? \textbf{RQ4}: does
+mechanistic reward shaping reduce the harm without degrading legitimate accuracy? \textbf{RQ5}: is the removal
+robust, or does the concept leak back under distribution shift --- the reward-vs-representation gap?
+\textbf{RQ6} (cross-model): does the bias cluster by training data or by architecture, locating mitigation
+upstream in data governance versus inside the model? We address RQ2 here by proxy, scoring authored decision
+responses rather than sampled policy outputs; RQ6 awaits the scaling run.
