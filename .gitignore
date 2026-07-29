@@ -1,6 +1,6 @@
 # LaTeX build artifacts (Overleaf compiles server-side; local LaTeX Workshop writes to build/)
 build/
-
+.vscode/
 *.aux
 *.bbl
 *.blg
