@@ -1,0 +1,17 @@
+{
+  // LaTeX Workshop: put ALL build artifacts (aux, log, pdf, synctex, ...) in a build/ folder next to
+  // the root .tex, so the source tree stays clean. The built-in PDF viewer + SyncTeX still work.
+  "latex-workshop.latex.outDir": "%DIR%/build",
+
+  // Keep the explorer tidy even if a stray artifact lands next to a source file.
+  "files.exclude": {
+    "**/*.aux": true,
+    "**/*.bbl": true,
+    "**/*.blg": true,
+    "**/*.fdb_latexmk": true,
+    "**/*.fls": true,
+    "**/*.out": true,
+    "**/*.synctex.gz": true,
+    "**/*.toc": true
+  }
+}
