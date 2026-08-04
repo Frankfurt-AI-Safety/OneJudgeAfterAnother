@@ -1,0 +1,100 @@
+% STANDALONE descriptive overview: where this work sits, as three steps (base paper -> current work ->
+% possible follow-up). Written for external conversations (funders, collaborators, new team members).
+% Deliberately descriptive: it states what each step is and what kind of workload it needs, and makes no ask.
+% Root-relative paths (shared/...), so compile FROM THE REPO ROOT:
+%   latexmk -pdf -interaction=nonstopmode -outdir=build progress/project_overview.tex
+\documentclass{article}
+\input{shared/macros}
+\title{Where This Work Sits: From Bias Diagnosis to Policy Debiasing}
+\author{Frankfurt AI Safety --- RM-Bias Working Group}
+\date{Overview note --- \today}
+\begin{document}
+\maketitle
+\sloppy
+
+\noindent A \rewardmodel{} (RM) is the shared evaluator of modern alignment: one preference model is trained
+once, then reused during RLHF, best-of-$N$ selection, and data filtering. A systematic error in that single
+component is not a local defect --- it propagates into everything trained against it.
+
+\section*{The method in short}
+\begin{itemize}\itemsep2pt
+  \item An RM is a transformer backbone plus \emph{one linear head} producing a single number:
+        $r = \mathbf{w}\cdot\mathbf{h} + b$, where $\mathbf{h}$ is the hidden state at the last token.
+        The reward is a linear readout of one vector --- that is the leverage.
+  \item We build \textbf{matched pairs}: texts that are byte-identical except for one swapped attribute
+        (enforced by a gate: single-slot difference, length and readability parity).
+  \item Averaging each pole's hidden states and subtracting gives a unit \diffmean{} direction $\mathbf{v}$
+        --- the displacement in activation space caused by flipping the attribute.
+  \item \textbf{\nullspace{}} removes the component along it:
+        $\mathbf{h}' = \mathbf{h} - \alpha\,(\mathbf{v}\cdot\mathbf{h})\,\mathbf{v}$, with $\alpha$ a dial
+        ($0$ = off, $1$ = bias component exactly zero).
+  \item The reward then shifts by exactly $-\alpha\,(\mathbf{v}\cdot\mathbf{h})(\mathbf{w}\cdot\mathbf{v})$:
+        how far \emph{this} input sits along the bias axis, times how much the head \emph{cares} about it.
+        We are not penalising the output; we are severing the channel the bias travels through.
+  \item \textbf{No weights are modified} --- an activation edit at scoring time, between the pooled hidden
+        state and the scalar head:
+\end{itemize}
+\begin{verbatim}
+  tokens -> backbone -> last-layer hidden state -> last token -> [ PROJECTION ]
+         -> scalar head -> reward
+\end{verbatim}
+
+\section*{Step 1 --- \textit{One Bias After Another} (base paper, arXiv:2603.03291)}
+\begin{itemize}\itemsep2pt
+  \item Established the mechanistic instrument above, and the distinction between \emph{low-complexity} bias
+        (a near-linear direction removable at little cost) and \emph{high-complexity} bias (entangled with
+        legitimate signal).
+  \item Applied it to capability- and style-related biases: response length, answer position, sycophancy,
+        and uncertainty.
+  \item What it did \emph{not} do: it was never applied to protected attributes.
+\end{itemize}
+
+\section*{Step 2 --- What we are doing now}
+\begin{itemize}\itemsep2pt
+  \item Carrying that lens into \textbf{protected-attribute and intersectional bias}, across three EU AI Act
+        high-risk domains: credit scoring, hiring, and essay grading.
+  \item A matched-pair generator with a structural validation gate, plus a stronger robustness test:
+        \leace{} (provably optimal linear erasure) followed by a \emph{non-linear} probe --- the \taco{}
+        signature of entanglement.
+  \item Findings on \modelSmall{}: demographic effects are large and behaviourally removable (explicit sex
+        on hiring, \autoInflSexCVbase{} $\rightarrow$ \autoInflSexCVnull{} when nulled), and a novel
+        \emph{standpoint-credibility} effect appears, where the RM rewards an identical argument more when
+        voiced from a marginalised standpoint (\standpointGapIntersectionPersuade{}).
+  \item The headline mechanistic result: after \leace{} the linear probe drops to chance
+        (\erasureLinearLeaceCorrPL{}) while an MLP still recovers the concept (\erasureMlpLeaceCorrPL{}).
+        \textbf{Nulling fixes the reward, not the representation.} (Measured so far on the reasoning concepts
+        of the model-response arm; the same test on the demographic directions is our next experiment.)
+\end{itemize}
+
+\section*{Step 3 --- What could be done next}
+\begin{itemize}\itemsep2pt
+  \item Every result so far concerns the \emph{evaluator}. The open question is whether a debiased evaluator
+        actually yields a less biased \emph{policy} --- whether the intervention has downstream value.
+  \item Since the projection is a pure function of the hidden state, the debiased RM is a \textbf{drop-in
+        reward function}: usable inside PPO with no retraining, via a thin wrapper around the score head.
+        The RM stays frozen while the policy updates, so the direction estimated offline stays valid.
+  \item This gives a \textbf{matched two-arm design} --- same base policy, seeds, and prompts, with the
+        \emph{only} difference being raw vs.\ nulled reward --- isolating the activation edit as the sole
+        causal variable. The prediction is falsifiable: the policy should improve on the nulled behaviour,
+        while bias may persist on adjacent ones.
+  \item New challenge to be honest about: benchmarking a \emph{policy} is a different measurement problem
+        from scoring fixed text. It needs generation-side instruments and a capability guardrail, so that
+        ``less biased'' is not simply ``worse''.
+\end{itemize}
+
+\section*{The three steps at a glance}
+\begin{center}\small
+\begin{tabular}{@{}p{2.4cm}p{3.4cm}p{3.4cm}p{3.6cm}@{}}
+\toprule
+ & \textbf{Step 1: base paper} & \textbf{Step 2: current} & \textbf{Step 3: possible next}\\
+\midrule
+Object studied & the \rewardmodel{} & the \rewardmodel{} & the \emph{policy} model\\
+Bias axis & length, position, sycophancy, uncertainty & protected attributes, intersectional & inherited from the RM\\
+Question & is the bias linearly removable? & is removal \emph{robust}, or only cosmetic? & does a debiased RM yield a debiased policy?\\
+Workload & inference: forward passes $+$ activation extraction & inference: forward passes $+$ activation extraction & policy training (PPO), with RM scoring in the loop\\
+Status & published & in progress & not started\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}
