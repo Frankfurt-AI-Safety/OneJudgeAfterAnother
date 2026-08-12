@@ -139,30 +139,34 @@ The reward-model (RM) set is chosen to disentangle whether bias is \emph{dataset
 \emph{architecture-driven}, with controlled comparisons built in: the same Skywork-V2 training data across
 different base architectures (Llama-8B vs Qwen3-8B); the same training recipe across a large size gap (the
 AllenAI RB2 8B vs 70B); distinct RM \emph{types} (a DeBERTa encoder RM and a quantile/distributional QRM);
-and a frontier 70B flagship. All RMs up to 8B run locally on Apple Silicon (MLX); 14B and larger are run on
-rented GPUs (see the compute-budget note). Everything routes through the same probe / null-space /
-LEACE pipeline, unchanged per model.
+and a frontier 70B flagship. \textbf{All reported runs go on the hessian.AI cluster (A100/H100 80\,GB),}
+under a two-month allocation secured 2026-08. The Apple Silicon (MLX) path is retained for local prototyping
+and as the numerical parity reference, not as a source of published numbers. Everything routes through the
+same probe / null-space / LEACE pipeline, unchanged per model. The \textbf{GPUs} column gives the bf16
+scheduling requirement: everything up to 32B fits on a single 80\,GB card; the two 70B models need
+$\approx$140\,GB and are sharded across two.
 \begin{center}\footnotesize\setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}llllp{4.1cm}@{}}
 \hline
-\textbf{Reward model} & \textbf{Params} & \textbf{Base} & \textbf{Compute} & \textbf{Role in the comparison}\\
+\textbf{Reward model} & \textbf{Params} & \textbf{Base} & \textbf{GPUs} & \textbf{Role in the comparison}\\
 \hline
-Skywork-Reward-V2-Qwen3-0.6B        & 0.6B & Qwen3   & local  & pilot; whole pipeline validated here\\
-OpenAssistant deberta-v3-large-v2   & 0.4B & DeBERTa & local  & encoder RM, pair-format; architecture outlier\\
-Skywork-Reward-V2-Llama-3.1-8B      & 8B   & Llama-3.1 & local & top open RM on RewardBench-2\\
-Skywork-Reward-V2-Qwen3-8B          & 8B   & Qwen3   & local  & same Skywork data, different base (arch effect)\\
-AllenAI Llama-3.1-8B-Instruct-RM-RB2& 8B   & Llama-3.1 & local & different recipe; 8B half of the scaling pair\\
-Skywork-Reward-Gemma-2-27B          & 27B  & Gemma-2 & rented & Skywork data on Gemma\\
-QRM-Gemma-2-27B (nicolinho)         & 27B  & Gemma-2 & rented & quantile/distributional RM (RM-type effect)\\
-Qwen-2.5-Nemotron-32B-Reward        & 32B  & Qwen2.5 & rented & Nemotron recipe\\
-Qwen-3-Nemotron-32B-Reward          & 32B  & Qwen3   & rented & Nemotron recipe, newer base\\
-AllenAI Llama-3.1-70B-Instruct-RM-RB2& 70B & Llama-3.1 & rented & same recipe as the AllenAI 8B (controlled scaling)\\
-Llama-3.3-Nemotron-70B-Reward       & 70B  & Llama-3.3 & rented & frontier flagship (state-of-the-art open 70B)\\
+Skywork-Reward-V2-Qwen3-0.6B        & 0.6B & Qwen3   & 1 & pilot; whole pipeline validated here\\
+OpenAssistant deberta-v3-large-v2   & 0.4B & DeBERTa & 1 & encoder RM, pair-format; architecture outlier\\
+Skywork-Reward-V2-Llama-3.1-8B      & 8B   & Llama-3.1 & 1 & top open RM on RewardBench-2\\
+Skywork-Reward-V2-Qwen3-8B          & 8B   & Qwen3   & 1 & same Skywork data, different base (arch effect)\\
+AllenAI Llama-3.1-8B-Instruct-RM-RB2& 8B   & Llama-3.1 & 1 & different recipe; 8B half of the scaling pair\\
+Skywork-Reward-Gemma-2-27B          & 27B  & Gemma-2 & 1 & Skywork data on Gemma\\
+QRM-Gemma-2-27B (nicolinho)         & 27B  & Gemma-2 & 1 & quantile/distributional RM (RM-type effect)\\
+Qwen-2.5-Nemotron-32B-Reward        & 32B  & Qwen2.5 & 1 & Nemotron recipe\\
+Qwen-3-Nemotron-32B-Reward          & 32B  & Qwen3   & 1 & Nemotron recipe, newer base\\
+AllenAI Llama-3.1-70B-Instruct-RM-RB2& 70B & Llama-3.1 & 2 & same recipe as the AllenAI 8B (controlled scaling)\\
+Llama-3.3-Nemotron-70B-Reward       & 70B  & Llama-3.3 & 2 & frontier flagship (state-of-the-art open 70B)\\
 \hline
 \end{tabular}
 \end{center}
-\emph{Eleven RMs spanning 0.6B--70B and the Llama / Qwen / Gemma / DeBERTa families. Exact Hugging Face
-paths for the NVIDIA Nemotron models are to be confirmed against the current releases.}
+\emph{Eleven RMs spanning 0.6B--70B and the Llama / Qwen / Gemma / DeBERTa families. GPUs = 80\,GB A100/H100
+cards needed per run at bf16. Exact Hugging Face paths for the NVIDIA Nemotron models are to be confirmed
+against the current releases.}
 
 \section{Open questions / things we are chasing}
 \begin{itemize}
@@ -250,13 +254,14 @@ Discovery'' at NeurIPS 2026. Good homes for the mechanistic-erasure angle specif
 \end{center}
 
 \begin{itemize}
-  \item \textbf{Why workshop first.} The write-up is explicitly in progress and the headline scaling results
-        depend on compute landing. A workshop paper puts the reward-vs-representation gap and the
-        standpoint-credibility effect in front of exactly the right community now, builds visibility while
-        the grant applications are pending, and de-risks the later archival submission.
+  \item \textbf{Why workshop first.} The write-up is explicitly in progress and the headline results still
+        come from a single 0.6B RM. A workshop paper puts the reward-vs-representation gap and the
+        standpoint-credibility effect in front of exactly the right community now, and de-risks the later
+        archival submission.
   \item \textbf{September is the decision point.} ICLR 2027 (2026-09-24) and the likely SoLaR / NeurIPS
-        workshop deadlines both fall around September 2026 --- which is also when the rented compute is
-        expected. Whether the scaling runs land by then determines archival-now vs.\ workshop-now.
+        workshop deadlines both fall around September 2026. Compute is no longer the constraint (the
+        hessian.AI allocation runs 2026-08 to 2026-10); what decides archival-now vs.\ workshop-now is
+        simply whether the eleven-RM runs are finished and analysed by then.
   \item \textbf{Sequencing.} Workshop paper on the pilot findings $\rightarrow$ ICLR 2027 or FAccT 2027 for
         the full study. FAccT's January deadline is the natural fallback if September is too tight.
   \item \todo{Confirm the SoLaR 2026 edition, its host conference and deadline; confirm FAccT 2027 dates
@@ -347,7 +352,30 @@ the clean neutral controls staying $\approx 0$ throughout:
 Tooling: \texttt{run\_positioned\_maineffect.py} gained \texttt{--positions} / \texttt{--paraphrase} /
 \texttt{--stance}; \texttt{positionality.py} has paraphrase pools $+$ a neutral-stance variant. Deferred:
 referee framing; a topic-natural social-issue corpus; 8B RM.
-\subsection*{\today}
+\subsection*{2026-08-12 --- compute secured; hiring substrate moved to real data}
+\begin{itemize}
+  \item \textbf{hessian.AI allocation:} two months of A100/H100 (80\,GB), 2026-08 to 2026-10. This covers the
+        whole eleven-RM ladder, so the local-vs-rented split in the RM table above is retired --- all reported
+        runs go on the cluster, and MLX stays as the prototyping / parity path. Supersedes the compute ask in
+        \texttt{progress\_2026-07.tex} (kept as a July snapshot).
+  \item \textbf{Hiring domain moved off the synthetic substrate} to \textbf{Bias-in-Bios} (De-Arteaga et al.\
+        2019; \texttt{LabHC/bias\_in\_bios}, MIT): $\approx$400k real biographies, 28 occupations, with
+        \emph{real} gender labels. Addresses validity item 2 --- our most load-bearing arms (erasure,
+        reasoning, decision-response) had been sitting on entirely synthetic CVs.
+  \item \textbf{Quality label = role-match.} The rendered header states a target role;
+        \texttt{qualified} $=$ (true profession $==$ target role), assigned $\approx$50/50 at load time. This
+        gives hiring a quality axis the RM can actually judge, which is exactly what credit and CV lack
+        (\texttt{acc\_baseline} \crossAccBaselineCredit{} / \crossAccBaselineCV{}, at chance, which is why
+        \crossinf{} is uninterpretable there).
+  \item \textbf{Open risk:} the HF mirror ships only \texttt{hard\_text}, which \emph{preserves} names and
+        pronouns, so we scrub ourselves. The Tier-1 gate cannot catch a bad scrub (it only compares the two
+        poles to each other, so leaked gendered text is present on both sides and passes). Validated
+        separately by probing the \emph{real} gender label from scrubbed bios --- near chance means the scrub
+        held.
+  \item The real gender labels also make validity item 1 measurable on a second domain: $\cos$(real-gender
+        direction, synthetic sex-marker direction), which so far rests on one German Credit run that returned
+        $-0.297$.
+\end{itemize}
 \todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
 \texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}
 
