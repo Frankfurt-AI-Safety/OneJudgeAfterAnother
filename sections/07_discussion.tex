@@ -18,13 +18,19 @@ corpus, are in progress. We report no confidence intervals or significance tests
 real. Our headline \autoinf{} statistic is a preference \emph{rate} and therefore saturates: a third of the
 battery cells sit at ceiling, which makes them uninformative about effect \emph{size}; the standpoint arm's
 identity gap, measured in raw reward units against a no-standpoint baseline, is the magnitude-preserving
-readout and we prefer it where available. The hiring substrate is synthetic, and it is the substrate carrying
-the erasure, reasoning, and decision arms. The accuracy guardrail (RewardBench-2 non-inferiority) is not yet
-reported, and on credit and CV the RM does not track quality at all, so no in-domain accuracy trade-off can be
-measured there. Standpoint probe accuracies are near chance, so the standpoint \emph{nulling} results are
+readout and we prefer it where available. Every hiring number reported here was produced on a \emph{synthetic}
+CV substrate, which is also the substrate carrying the erasure, reasoning, and decision arms; the hiring domain
+has since been moved to real biographies (Section~\ref{sec:pipeline}), but those arms have not yet been re-run,
+so the substrate change does not retroactively strengthen the evidence below. The accuracy guardrail
+(RewardBench-2 non-inferiority) is not yet reported, and on credit and CV the RM does not track quality at all,
+so no in-domain accuracy trade-off can be measured there. Standpoint probe accuracies are near chance, so the standpoint \emph{nulling} results are
 weaker evidence than the standpoint \emph{gap} results. Finally, our markers are injected rather than
 naturally occurring: on the one arm where we can compare, the real-field direction is anti-correlated with the
 synthetic one, which we are following up as a validity question in its own right.
 \paragraph{Future work.} Beyond the scaling study: extending the erasure test to the demographic directions;
-a cross-domain transfer test for leak-back; and a forced-choice pairwise readout as a cross-check on the
-scalar one, which needs a generative judge since it is out-of-distribution for a scalar RM.
+re-running the erasure, reasoning and decision arms on the real hiring substrate, where role match supplies a
+quality signal the model can track and \crossinf{} may become interpretable as it did for essays; a
+cross-domain transfer test for leak-back; and a forced-choice pairwise readout as a cross-check on the scalar
+one, which needs a generative judge since it is out-of-distribution for a scalar RM. The real corpus also
+carries its own gender label, which lets the injected-vs-real direction comparison --- so far a single
+anti-correlated credit result --- be repeated on a second domain.

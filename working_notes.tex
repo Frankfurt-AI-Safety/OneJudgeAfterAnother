@@ -192,9 +192,9 @@ against the current releases.}
         Framed as a contribution back to the base method; not yet run.
 \end{itemize}
 
-\subsection*{Validity workstream (scheduled)}
-Three checks on whether our \emph{instruments} measure what we claim, to be run as one block. These bear on
-how much of the A1 marker evidence survives, so they are scheduled ahead of further breadth.
+\subsection*{Validity workstream (item 2 delivered 2026-08-12)}
+Three checks on whether our \emph{instruments} measure what we claim. These bear on how much of the A1 marker
+evidence survives, so they are scheduled ahead of further breadth.
 \begin{enumerate}
   \item \textbf{Real vs.\ synthetic marker validity --- promote from footnote to finding.} On the one real-field
         run (German Credit \texttt{personal\_status\_sex}, $n{=}142$/group, probe acc $0.92$) the real-field
@@ -203,9 +203,19 @@ how much of the A1 marker evidence survives, so they are scheduled ahead of furt
         reward gap of $\approx 0$. Plan: extend to PERSUADE~2.0's unused real race/sex/ELL labels and to
         further credit fields; report $\cos(\text{real}, \text{synthetic})$ per axis; treat a persistent
         negative or near-zero cosine as a result \emph{about the injected-marker method itself}.
-  \item \textbf{Bias-in-Bios real CVs} to replace the fully synthetic hiring substrate, which currently
-        carries the erasure, reasoning, and decision arms --- i.e.\ our most load-bearing arms sit on the
-        least externally valid data.
+        \emph{Now cheaper:} item 2 brings a second corpus with a real sex label, so this is measurable on
+        hiring as well as credit without any new annotation.
+  \item \textbf{Bias-in-Bios real CVs --- \textsc{done}.} The hiring domain now loads Bias-in-Bios
+        \citep{dearteaga2019bias} instead of the synthetic CV generator (4000 matched pairs, 8 axis
+        $\times$ encoding cells, 0\% gate discard). Quality is \emph{role match} (true occupation $==$ the
+        target role named in the header), so hiring gains a quality axis the RM can plausibly judge --- the
+        thing credit lacks. \textbf{Caveat that matters:} the substrate changed, the evidence has not. The
+        erasure, reasoning and decision arms have \emph{not} been re-run, so every hiring number in the
+        write-up still rests on synthetic CVs. \textbf{Open sub-task:} the corpus preserves names and
+        pronouns, so bodies are scrubbed; the Tier-1 gate structurally cannot verify that (leaked text sits
+        on both poles and cancels), so \texttt{validate\_bios\_scrub.py} probes the corpus's \emph{real}
+        gender label out of scrubbed activations. Near chance $\Rightarrow$ clean. That check has not been
+        run on \modelSmall{} yet, and no sex-axis number from this substrate should be trusted until it is.
   \item \textbf{Name-pool validation} against Bertrand--Mullainathan / Haim et al.\ before any publishable
         ethnicity number. \texttt{markers.py} already self-flags the pools as an unvalidated starter set, and
         ethnicity is exactly the axis that is template-unstable across corpora

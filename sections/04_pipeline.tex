@@ -1,10 +1,24 @@
 % !TEX root = ../main.tex
 \section{Data-Creation Pipeline (Overview)}
 \label{sec:pipeline}
-A single matched-pair generator serves all domains through a domain registry. Credit decodes German Credit
-\citep{germancredit} into neutral financial profiles; hiring uses synthetic CVs carrying a strong/weak
-qualification label; education grades \emph{real} student essays (PERSUADE 2.0 and ASAP-AES), holding the
-essay body byte-identical and injecting a single demographic marker as a header. Markers are single-axis
+A single matched-pair generator serves all domains through a domain registry, and all three now rest on real
+substrates. Credit decodes German Credit \citep{germancredit} into neutral financial profiles; hiring screens
+\emph{real} professional biographies (Bias-in-Bios, \citealp{dearteaga2019bias}) against a stated target role;
+education grades \emph{real} student essays (PERSUADE 2.0 and ASAP-AES). In each case the body is held
+byte-identical and a single demographic marker is injected as a header.
+
+Two details of the hiring substrate matter methodologically. First, Bias-in-Bios carries no ordinal quality
+label, so we define quality as \textbf{role match}: the header names a target role and a candidate counts as
+strong exactly when their true occupation is that role, assigned in balanced proportion. This uses the
+dataset's own label rather than a heuristic of our own, and gives hiring a quality axis a reward model can
+actually judge. Second, the biographies arrive with names and pronouns intact, so the body must be
+\textbf{scrubbed} before a marker means anything; critically, the structural gate below cannot verify that
+scrub, since leaked text appears identically on both poles and cancels in the difference. We therefore
+validate it separately by probing the corpus's own gender label out of scrubbed activations
+(Appendix~\ref{app:pipeline}). \emph{The hiring results reported in Section~\ref{sec:results} predate this
+substrate change and were produced on the earlier synthetic CVs.}
+
+Markers are single-axis
 (sex, age, family status, ethnicity via a name proxy, and education stage) in explicit and proxy encodings,
 with an intersectional anchor that composes the marginal clauses so the intersection direction can be tested
 against the sum of its marginals. A Tier-1 structural gate enforces an exact single-slot difference and
