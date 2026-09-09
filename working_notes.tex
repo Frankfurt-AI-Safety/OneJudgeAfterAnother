@@ -222,6 +222,29 @@ evidence survives, so they are scheduled ahead of further breadth.
         (\eduEthnicityExplicitAsap{} ASAP vs \eduEthnicityExplicitPersuade{} PERSUADE).
 \end{enumerate}
 
+\subsection*{Codebase: prune and migrate to a fresh repository (planned)}
+The work lives in a fork of \texttt{drfein/OneBiasAfterAnother}, and that has become the wrong container for
+it:
+\begin{itemize}
+  \item \textbf{We do not reproduce the upstream results.} The fork carries the base paper's length,
+        position, sycophancy and uncertainty arms, which we neither run nor report --- the extension is the
+        whole contribution. Keeping them invites the reader to assume a replication we are not performing
+        (RQ0 aside, which is a scoped re-test of their \emph{claims}, not a re-run of their pipeline).
+  \item \textbf{The MLX backend has served its purpose.} It existed so the pipeline could be built and
+        validated on Apple Silicon while we had no GPUs. With the allocation confirmed and CUDA parity
+        verified (log, 2026-09-09), every reported number now comes off the cluster, so a second backend is
+        maintenance cost plus a second numerical path to reason about.
+  \item \textbf{We are not admins on the fork.} Discussions, Pages and app installs are unsettable there;
+        the experiment-review site already had to live in a separate repo we own for exactly this reason.
+\end{itemize}
+\noindent \textbf{Plan:} copy the demographic pipeline, the site builder and the \texttt{cluster/} setup into
+a fresh repository we own, keep the fork read-only as provenance, and \emph{cite} the base paper rather than
+vendoring it. Two things to carry over deliberately rather than let lapse: the \textbf{MLX parity evidence},
+which is what licenses the claim that the CUDA numbers are sound even after the backend is dropped, and the
+snapshot in \texttt{results/}, which is the only public record of the pilot numbers.
+\todo{Schedule this \emph{after} the eleven-RM ladder completes. A repo move mid-run would invalidate every
+path in \texttt{cluster/config.yaml}, the PFSS working directory and the Hugging Face cache layout.}
+
 \section{Target venues}
 Deadlines below are as of \textbf{2026-08-04}; re-check before relying on any of them. The plan is
 \textbf{two-track}: put the pilot findings into a workshop \emph{now}, and hold the full eleven-RM scaling
@@ -277,6 +300,23 @@ Discovery'' at NeurIPS 2026. Good homes for the mechanistic-erasure angle specif
   \item \todo{Confirm the SoLaR 2026 edition, its host conference and deadline; confirm FAccT 2027 dates
         when the CFP posts; confirm the ARR cycle that feeds ACL 2027.}
 \end{itemize}
+
+\section{Acknowledgement (required in the final submission)}
+Compute for the scaling runs comes from the hessian.AI 42 cluster, and the allocation carries a
+funding-acknowledgement obligation. The following must appear \textbf{verbatim} in any paper reporting these
+results:
+
+\begin{quote}
+We gratefully acknowledge support from the hessian.AI Service Center (funded by the German Federal Ministry
+of Research, Technology and Space, BMFTR, grant no.\ 16IS22091) and the hessian.AI Innovation Lab (funded by
+the Hessian Ministry for Digital Strategy and Innovation, grant no.\ S-DIW04/0013/003).
+\end{quote}
+
+\noindent This is a condition of the allocation rather than a courtesy, so it belongs on the camera-ready
+checklist for every venue in the section above.
+\todo{Double-blind caveat: the text names funders and grant numbers and would deanonymise us. ICLR, FAccT
+and AIES all review double-blind, so it must be \emph{withheld} from the submitted version and added at
+camera-ready --- the opposite of the usual instinct to paste acknowledgements in early.}
 
 \section{Log}
 \subsection*{2026-07-02 --- domain scope \& direction decisions}
@@ -386,6 +426,29 @@ referee framing; a topic-natural social-issue corpus; 8B RM.
         direction, synthetic sex-marker direction), which so far rests on one German Credit run that returned
         $-0.297$.
 \end{itemize}
+\subsection*{2026-09-09 --- cluster access live; CUDA path validated}
+\begin{itemize}
+  \item \textbf{The hessian.AI 42 cluster is running our code.} Workspace \texttt{IL\_rm\_bias} on
+        A100-SXM4-80GB via the MLDE/Determined platform. The setup is committed under \texttt{cluster/} in
+        the code repo: task configs, environment notes, a checkpoint prefetcher and a runbook.
+  \item \textbf{Parity smoke test passed.} The credit explicit-sex arm reproduces the Mac/MLX reference:
+        baseline \autoinf{} exactly $1.00$, and --- the decisive line --- the nulled effect in raw reward
+        units agrees to three decimals (\texttt{abs\_mean\_gap} $0.0689$ vs $0.069$) across two frameworks,
+        two dtypes and two backends.
+  \item \textbf{The single divergence is one we had already documented.} Nulled \autoinf{} reads $0.11$
+        against a reference $0.06$. Nulling drives \texttt{mean\_gap} to $0.008$, i.e.\ essentially zero, so
+        every A/B comparison is decided by numerical noise; \texttt{pref\_a\_rate} $0.555$ vs $0.53$ is
+        $0.7$\,SE at $n{=}200$. This is the bf16-vs-fp32 decision-tie effect recorded during the original MLX
+        parity work, not a framework fault.
+  \item \textbf{Metric consequence, worth settling before eleven models of output exist.} \autoinf{} is a
+        preference \emph{rate}: it saturates at $1.00$ for any consistently-signed effect and degenerates to
+        noise once an effect is nulled --- and both ends of its range are exactly where we read it. Report
+        \texttt{mean\_gap}/\texttt{abs\_mean\_gap} as the primary magnitude alongside it, as the A2 arm
+        already does with \texttt{identity\_gap}.
+  \item Consequence for the codebase: with CUDA validated, the MLX backend is no longer on the critical path
+        --- see the migration plan above.
+\end{itemize}
+
 \todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
 \texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}
 
