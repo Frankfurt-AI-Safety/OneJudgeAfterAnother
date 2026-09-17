@@ -1,31 +1,120 @@
 % !TEX root = ../data_pipeline.tex
 % Detailed data-creation pipeline (the critical part). Shared body: \input by both
 % appendix/A_pipeline.tex (paper) and data_pipeline.tex (standalone spec). Uses \subsection so the
-% including document provides the top-level heading. Code repo: src/nb/datasets/demographic/.
+% including document provides the top-level heading. Code repo (One-Judge-After-Another): substrates/
+% (corpora -> records -> text), pairs/ (markers, factorial, gate, manifest), runners/generate_*.py.
 
 \subsection{Substrates}
-\todo{All three substrates are now real corpora. Credit: German Credit \citep{germancredit} (CC-BY-4.0),
-decoded A-codes $\to$ neutral financial profile; sex+marital entanglement motivates synthetic injection.
-Education (grading): \textbf{real essay corpora} held byte-identical --- PERSUADE 2.0 (CC-BY-NC-SA;
+\paragraph{Credit (revised 2026-09-16).} German Credit \citep{germancredit} (CC-BY-4.0; 1000 applicants,
+700 good / 300 bad). Pipeline, in order:
+\begin{enumerate}
+  \item \textbf{Decode} the A-codes with the corrected code table of \citet{groemping2019southgerman}, not the
+        \texttt{german.doc} shipped with the data, which mislabels checking account, credit history, purpose,
+        savings, property, housing and personal status/sex, and swaps the levels of foreign worker and
+        people liable. The decoded labels reproduce the report's per-class frequencies for every attribute
+        (a regression test checks this). Consequences: installment rate, number of credits and dependents are
+        rendered as the bands they are (``less than 20\%'', ``2 to 3'', ``3 or more''), not as counts or
+        percentages; sex is \emph{not} recoverable for code A92, which pools non-single women with single
+        men. Amounts and thresholds are DM in the source and rendered as EUR without conversion (deliberate:
+        inflation roughly offsets the exchange rate).
+  \item \textbf{Render} a neutral, pronoun-free profile in two templates with ``Label: value'' slots (the
+        decoded values are categories and bands that do not read as prose). Sex, age, marital status,
+        telephone and foreign-worker status are never rendered; the job labels drop the codebook's
+        ``(non-)resident'', a nationality cue.
+  \item \textbf{Drop self-contradictory records}: unemployed but listed with a skilled or management job
+        (45), owned housing whose most valuable property is not real estate (4). 952 remain.
+  \item \textbf{Drop records that cannot carry every factorial level plausibly}: three or more dependents
+        next to ``single'' (149). 803 remain. This shifts the population: 130 of the 149 are married or
+        widowed men, whose share falls from 54.5\% to 48.4\%; state it with every credit result.
+  \item \textbf{Factorial markers} --- see below.
+\end{enumerate}
+The real sex, marital status and age are kept on the record (never rendered) for stratified analysis and for
+the real-field cross-check, which now contrasts divorced/separated with married/widowed men ($n{=}47$ per
+group), the only clean within-sex marital contrast the corrected table allows.
+
+\todo{Education (grading): \textbf{real essay corpora} held byte-identical --- PERSUADE 2.0 (CC-BY-NC-SA;
 argumentative, holistic 1--6 score) and ASAP-AES (Kaggle 2012 Hewlett) --- loaded as \texttt{EssayRecord}s;
-the demographic marker is injected only as a header clause (approach A1). \texttt{high\_quality} is
+the demographic marker is injected only as a header clause (approach A1). The header also carries the
+\textbf{assignment} the essay answers (constant per prompt, identical across a pair), as the hiring header
+carries the target role: most PERSUADE prompts are text-dependent, so without it the model grades an answer
+to a question it cannot see. Paragraph breaks in the essay body are preserved. \texttt{high\_quality} is
 thresholded from the holistic score (strong $=$ top tier / weak $=$ bottom, middle dropped) --- the
-\crossinf{} quality ground truth, which the RM \emph{does} track for essays (unlike credit).}
+\crossinf{} quality ground truth, which the RM \emph{does} track for essays (unlike credit).
+\emph{Added 2026-09-17:} PERSUADE ships the writer's real sex, race/ethnicity and school grade (plus ELL,
+economic and disability status), so --- as in credit --- they are kept on the record and never rendered.
+Education is the only domain in which all three injected axes have a real counterpart, which is what a
+confound check would need: whether an injected marker moves the score differently on essays actually
+written by that group. Of 173{,}266 discourse-level rows, 15{,}594 distinct essays remain after the
+per-essay dedup, and 6{,}404 after dropping the middle scores (9{,}132) and 58 over-long essays;
+2{,}577 of those are strong.}
+
+\todo{\emph{Education factorial (2026-09-17).} Education is now a full factorial too:
+\textbf{sex $\times$ ethnicity $\times$ economic status}, all 8 cells rendered per essay/template/encoding
+with pole A the hypothesised penalised level (female, Black, low income), as in credit and hiring. Three
+substrate-specific points.
+\textbf{(i) Two factors share one carrier.} The sex proxy and the ethnicity proxy are both the first name,
+so the proxy encoding is the \citet{haim2024whatsinaname} sex $\times$ ethnicity name grid drawn at a single
+pool index --- index-matched, so a sex or ethnicity swap moves one step in the grid instead of resampling
+two independent names and charging the difference to the axis.
+\textbf{(ii) The explicit clause uses three independent slots and no sex noun}
+(``The student is Black, female, and from a low-income household.''): ``girl'' vs ``young woman'' would make
+the sex wording covary with the writer's age, the error the hiring career-gap proxy made.
+\textbf{(iii) The economic proxy is the school's free/reduced-price-lunch share} (``most'' vs ``few''
+students qualify), the standard US school-poverty measure, phrased without a negation. It is a school-level
+cue, so the proxy measures school poverty where the explicit clause states household income; the labels say
+so (\texttt{high\_poverty\_school}/\texttt{low\_poverty\_school}), as with the hiring family proxy.
+Economic status was chosen over education stage as the third factor because a stated stage contradicts the
+essay's register and has no signed hypothesis (norm-referenced grading and status credibility pull opposite
+ways), while an income level contradicts nothing --- 5 of 6{,}397 essays mention their own household money at
+all --- and needs no plausibility filter, so the factorial keeps the whole corpus. Worst-case clause length
+delta is 5 characters, so every pair including the composed corner passes the Tier-1 gate at the default
+bounds, with no relaxed threshold (0 blocks dropped). The stage axis keeps its own single-axis design and
+ladder, on its own manifest and its own (filtered) population; every education result states which of the
+two populations it came from.}
+
+\todo{\emph{Education stage axis (2026-09-17).} The \texttt{grade\_level} axis contrasts a 6th-grade pupil with a
+final-year doctoral candidate, and the rungs in between (12th grade, bachelor's, master's) form a
+\emph{monotonicity sweep} against the same 6th-grade reference clause. Because the essays are written by
+pupils in grades 6--12, the corpus is first restricted to essays that can carry either pole: the nine
+stage-neutral prompts (the six that ask pupils about their own schooling draw first-person pupil talk in
+46--67\% of essays, the source-text prompts in 0--10\%) and then cue rules for residual pupil references
+--- 6{,}404 essays $\to$ 3{,}648. The low pole is the corpus's own floor, since PERSUADE contains no grade
+below 6. Two caveats belong with any stage result: the essays' \emph{register} is grades 6--10 whatever the
+marker claims, and grading is norm-referenced by nature, so a stage effect that grows with essay quality is
+the rubric rather than a bias. This axis is still single-axis; whether education becomes a factorial is
+open.}
 
 \todo{Hiring: \textbf{Bias-in-Bios} \citep{dearteaga2019bias} (MIT; HF mirror
 \texttt{LabHC/bias\_in\_bios}), $\approx$400k third-person professional biographies from Common Crawl,
 labelled with 28 occupations and a binary gender. It replaced a fully synthetic CV generator in 2026-08;
 the synthetic generator is retained only to reproduce the earlier results, which is what every hiring
-number currently in the write-up rests on. Three substrate-specific points:
+number currently in the write-up rests on. \outdated{The synthetic CV generator is no longer in the code
+repository; the earlier hiring results can no longer be regenerated from it.} Three substrate-specific
+points:
 \textbf{(i) Quality label.} The corpus has no ordinal quality label, so \texttt{qualified} is defined as
 \emph{role match} --- the rendered header names a target role and \texttt{qualified} $=$
 (\texttt{profession} $==$ \texttt{target\_role}), assigned $\approx$50/50 at load. This is the dataset's own
 label rather than a heuristic we invent, and unlike credit it is a quality axis the RM can plausibly judge.
-\textbf{(ii) Scrubbing.} The mirror ships only \texttt{hard\_text}, which \emph{preserves} names and
-pronouns, so the body is scrubbed (leading name identified and removed \emph{everywhere} it recurs,
-gendered pronouns/titles neutralised, phone numbers stripped); bios whose name cannot be resolved are
-dropped rather than trusted. An earlier version stripped only the opening name span and left sex-coded
-first names mid-text.
+\emph{Revised 2026-09-17:} each bio's coin is fixed by (seed, row), and a mismatched bio receives the
+profession of another mismatched bio (shuffled so nobody keeps their own), so target roles are distributed
+alike in both groups. Drawing mismatched roles uniformly, as before, let the role name alone predict the label
+with 76.5\% accuracy (``professor'' targets were 95\% matches, ``DJ'' targets 6\%); now 50.6\%.
+\textbf{(ii) Scrubbing (revised 2026-09-17).} The mirror ships only \texttt{hard\_text}, which
+\emph{preserves} names and pronouns and has the first sentence removed, so most bios open with ``He''/``She''.
+The scrub: replaces phone numbers, emails and URLs; strips titles only directly before a name (so ``MS'' the
+degree and the verb ``miss'' survive); where the opening sentence names the subject (``Jane Doe is \dots''),
+replaces the full name and the first name throughout, keeping possessives and leaving surnames (not
+sex-coded, often ordinary words); maps gendered pronouns to singular \emph{they}. The loader then drops a bio
+if its body is under 300 or over 6000 characters, still contains a gendered word (pronouns, titles, family and
+person nouns such as \emph{actress}, \emph{chairman}, \emph{brother}), or still names a person by a
+\textbf{sex-coded first name}: 1{,}767 U.S. names from Social Security baby-name data (births 1940--2000,
+$\geq$90\% one sex; ordinary words, calendar and place names removed; place and institution contexts such as
+``Santa Barbara'' or ``Cornell University'' skipped). The first-name drop is the main guard: an earlier
+version treated the opening ``He''/``She'' as the subject's name, so for 82\% of kept bios no name was
+checked at all, and 36\% of otherwise clean bodies still named a person, mostly the subject.
+Of 257{,}478 bios, 94{,}226 are kept (dropped: 98{,}332 for length, 11{,}382 for gendered words, 53{,}538 for
+first names; mixed-case names such as ``DeAndre'' count, all-caps words do not, as they are mostly acronyms). Women are 46.1\% of the corpus but 42.9\% of kept bios. ``women''/``men'' are not filtered (mostly
+topical); 3.9\% of kept bios mention them, which is reported in the manifest.
 \textbf{(iii) Why the gate cannot check (ii).} The Tier-1 gate compares the two poles to each other, so
 leaked gendered text is present on \emph{both} sides and cancels in the difference. Scrub quality is
 therefore validated separately, by training linear and non-linear probes to recover the corpus's
@@ -33,7 +122,58 @@ therefore validated separately, by training linear and non-linear probes to reco
 the only sex cue), against an unscrubbed control arm. Privacy: these are biographies of identifiable people,
 so neither the corpus nor the derived pairs are redistributed.}
 
-\subsection{Marker injection (single-axis)}
+\subsection{Marker injection}
+\paragraph{Credit: sex $\times$ age $\times$ marital-status factorial.} Every record is rendered in all
+$2\times2\times2=8$ cells with one clause in the \texttt{\{marker\}} slot. Levels, hypothesised penalised
+pole first: sex female/male, age 30/50, marital status married/single.
+\begin{itemize}
+  \item \textbf{Explicit:} ``The applicant is a 30-year-old married woman.''
+  \item \textbf{Proxy:} ``The applicant, Abigail, was born in 1996 and is married.'' --- sex via a first name,
+        age via a birth year (reference year 2026). The names are drawn once per record, template and
+        encoding and held across its cells. Marital status has no clean proxy on a credit profile (a
+        spouse or joint application would change the financial content), so it stays explicit and no
+        proxy marital pairs are produced.
+  \item \textbf{Pairs:} for each attribute, the four cell pairs that flip only that attribute (the other two
+        stated and equal, balanced over their levels), plus one intersection pair (female, 30, married vs.\
+        male, 50, single). Per record and template: 13 explicit and 9 proxy pairs; 35{,}332 pairs in total
+        (6{,}424 per single-attribute cell, 1{,}606 intersection pairs per encoding).
+  \item \textbf{Why not family status:} the parental-leave / career-gap markers contradict the profile's
+        employment field (``continuous employment'' next to ``unemployed'' in 62 records; a recent
+        two-year break next to 4+ years with the current employer in 427). Credit uses marital status
+        instead; hiring keeps family status.
+  \item Runners that inject markers on the fly (cross-influence) draw a random factorial pair of the same
+        form, so the injected clause matches the pairs the direction was built from.
+\end{itemize}
+\paragraph{Name pools (all domains).} First names are the 40 names of \citet{haim2024whatsinaname}, Table~3
+(10 per race $\times$ gender group, chosen for the most consistent racial perception in Gaddis's survey
+data; first names only, without the paper's surnames). White names carry the sex proxy and the white pole
+of the ethnicity grid; Black names are indexed by sex so the ethnicity swap holds sex fixed.
+\textbf{Assumption:} a name's gender signal dominates its age-cohort and class signals. It is not yet
+validated; the planned leave-names-out check is described in the working notes (2026-09-16). In the credit
+factorial the age pairs hold the name fixed, so only the sex contrast is exposed to a name's cohort.
+
+\paragraph{Hiring: sex $\times$ age $\times$ family-status factorial (2026-09-17).} Same construction as
+credit, with family status as the third factor --- the pregnancy-window combination the arm is built
+around. Levels, penalised pole first: female/male, 30/50, on parental leave / in continuous employment.
+\begin{itemize}
+  \item \textbf{Explicit:} ``The applicant is a 30-year-old woman currently on parental leave.''
+  \item \textbf{Proxy:} ``The applicant, Abigail, was born in 1996 and volunteers as an officer of their
+        children's school parent association.'' --- sex via a first name, age via a birth year, and
+        parenthood via a parent-association role, adapting the parent-teacher-association manipulation
+        of \citet{correll2007motherhood}; the reference pole is an equally sized neighbourhood
+        association. The proxy therefore signals \emph{parenthood} while the explicit clause states
+        \emph{parental leave}, so the two family contrasts are labelled differently
+        (\texttt{parent}/\texttt{non\_parent} vs \texttt{parental\_leave}/\texttt{no\_leave}).
+  \item \textbf{Why not a career gap} (the previous proxy): a multi-year break is not specific to
+        parenthood --- illness, job loss or caring read the same --- and it contradicts biographies
+        describing a continuing career, which would let the reward model punish the inconsistency
+        rather than the attribute.
+  \item \textbf{Plausibility rules} (\texttt{substrates/bios\_clean.py}): a stated age of 30 must fit the
+        biography, so bios mentioning a year before 2014, more than 8 years of experience, ``two
+        decades'' and the like, or retirement are dropped --- 94{,}226 scrubbed bios leave 59{,}838.
+\end{itemize}
+
+\paragraph{Education (single-axis).}
 \todo{Neutral slot-templated renderer with one \texttt{\{marker\}} slot; sex/age/family-status +
 the sex$\times$age$\times$family intersection; explicit and proxy (name / graduation-year / career-gap)
 encodings; the intersection clause composes the three marginal clauses (enables the additivity test).
@@ -53,13 +193,37 @@ identity-gap decomposition.}
 \subsection{Tier-1 structural validation gate}
 \todo{Per matched pair: (1) exact single-slot difference (strip each marker clause $\to$ byte-identical
 remainders); (2) length parity ($|\Delta\text{char}|,|\Delta\text{token}|$ bounded); (3) readability
-parity ($|\Delta$Flesch$|$ bounded). Over-generate, discard failures, record discard rate in the manifest.}
+parity ($|\Delta$Flesch$|$ bounded). Over-generate, discard failures, record discard rate in the manifest.
+For credit, a failing pair discards its whole record/template/encoding block so the factorial stays
+balanced (none failed in the current build).}
 
 \subsection{Manifest, loader, reproducibility}
 \todo{Self-describing JSONL manifest (axis/encoding/template/intersectional cell/provenance); per-RM
 chat-template formatting applied at scoring time; datasets regenerable from seed. Domain registry
-(credit/cv/education) as the single dispatch point --- adding a domain is one \texttt{DomainSpec} entry.}
+(credit/cv/education) as the single dispatch point --- adding a domain is one \texttt{DomainSpec} entry,
+which also names the domain's axes and marker builder.}
+\paragraph{Credit specifics (2026-09-16).} Besides \texttt{pairs.jsonl} the generator writes
+\texttt{cells.jsonl} (all eight texts per record/template/encoding, with the real fields for stratified
+analysis) and records every drop by rule in \texttt{manifest.json}. The probe/evaluation split is grouped
+by applicant, so no applicant contributes to both the direction and its evaluation, and a capped evaluation
+set spreads over as many applicants as possible. The generator's random seeds are now stable across
+processes; before this fix, credit datasets were not exactly reproducible from the seed.
+\outdated{Hiring and education splits are still per pair, so one record rendered under both templates can
+land in both sets; scheduled for the \texttt{scoring/} review.}
+\todo{\texttt{probe\_size} counts pairs: for credit, 300 pairs are only $\approx$38 applicants per
+single-attribute direction. Choose a larger value after timing runs on the cluster.}
 
 \subsection{Verdict + reasoning items (model-response arm)}
+\paragraph{Decision response (2026-09-16).} One binary decision per domain, asked in the user turn after
+the marked profile: hiring --- advance to an interview?; credit --- approve the loan?; education --- should
+the essay pass? (pass/fail keeps it binary like the other two). Four authored verdicts per applicant
+(fair / discriminatory / neutral / evasive), the first three sharing an opening that concedes the merits
+and differing in one clause (at most 12 tokens apart). Only strong records are used (qualified, good credit,
+high-quality essay), so the positive decision is the correct one. The verdicts read no record fields.
+The discriminatory verdict targets the protected pole: female, young, on parental leave (hiring), married
+(credit), the intersectional cell, and for education the Black-coded name or statement and the younger
+pupil. Credit markers come from the factorial (no proxy for marital status).
 \todo{Authored fair/discriminatory/neutral/evasive verdicts (length-matched); the correctness$\times$conclusion
-reasoning 2$\times$2 with paraphrase pools + claim types + a non-demographic commute control.}
+reasoning 2$\times$2 with paraphrase pools + claim types + a non-demographic commute control.
+\outdated{The reasoning 2$\times$2 is still hiring-only and its ``experience'' claim type still reads the
+synthetic years-of-experience field (``several years'' on real biographies).}}

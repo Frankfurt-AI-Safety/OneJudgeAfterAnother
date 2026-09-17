@@ -3,5 +3,116 @@
 %
 % Additivity cosines: additivity_check.py now supports --out; until it is re-run with --out these
 % stay here. Replace with the auto macros (\additivityCosCV / \additivityCosCredit) once serialized.
-\newcommand{\additivityCosCV}{0.66}     % TODO auto: additivity_check.py --domain cv --out ...
-\newcommand{\additivityCosCredit}{0.71} % TODO auto: additivity_check.py --domain credit --out ...
+\newcommand{\additivityCosCV}{0.66}     % TODO auto: run_additivity.py --domain cv --out ...
+\newcommand{\additivityCosCredit}{0.71} % TODO auto: run_additivity.py --domain credit --out ... (STALE, see below)
+
+% --- STALE AUTO-NUMBERS (2026-09-16) ---------------------------------------------------------------
+% numbers.tex is auto-generated and must not be edited, so stale values are flagged here instead: each
+% \markstale{name}{mark} re-typesets the macro in orange with a mark. Every use in every document is
+% flagged at once. DELETE THE MATCHING LINE once export_paper_numbers.py has re-exported the value from
+% a re-run (a leftover line would flag a fresh number as stale).
+%   \dag      credit: German Credit was decoded with the wrong UCI code table, and the pairs now come
+%             from the sex x age x marital-status factorial -- every credit result must be re-run.
+%   \ddag     ASAP: redaction-tag cleaning changed 22 of 12,976 essays (adjacent tags such as
+%             @PERCENT1@NUM1) -- expected to be negligible, re-run for consistency.
+%   \S        inputs changed: the proxy first names are now Haim et al.'s Table 3 (every name-proxy
+%             number), and the decision-response verdicts now open without the synthetic "N years" field.
+%   \P        education substrate changed: (a) the essay-id lookup keyed on the lossy `essay_id` column
+%             and merged two essays, it now keys on `essay_id_comp`, so every PERSUADE record id and the
+%             sampled set change; (b) the essays are now restricted to the stage-neutral prompts without
+%             in-essay pupil cues; (c) the grade_level poles widened to 6th grade vs doctoral candidate.
+%             (a)+(b) are PERSUADE-only; (c) changes the grade_level clauses in both corpora; (e) the
+%             education arm is now a sex x ethnicity x economic-status factorial, so the sex and
+%             ethnicity clauses are composite (all three attributes stated) and the ethnicity pole was
+%             corrected from white to Black in the decision frame; and
+%             (d) the rendered header now carries the assignment and the body keeps its paragraph
+%             breaks, which changes every education item. The ASAP education numbers are not marked
+%             \P individually: every one of them already carries \ddag, so none is quotable either way.
+% A macro may carry SEVERAL marks (two independent reasons, each cleared by its own re-run), so the
+% saved original is keyed by a counter rather than by the macro name: keying by name made the second
+% \markstale of the same macro overwrite the first one's backup with the already-wrapped definition,
+% i.e. define it in terms of itself (a TeX capacity error at first use, not a warning).
+\newcounter{stalemark}
+\newcommand{\markstale}[2]{%
+  \stepcounter{stalemark}%
+  \expandafter\let\csname stale@\thestalemark\expandafter\endcsname\csname #1\endcsname
+  \expandafter\edef\csname #1\endcsname{%
+    \noexpand\textcolor{orange}{%
+      \expandafter\noexpand\csname stale@\thestalemark\endcsname
+      \noexpand\textsuperscript{\unexpanded{#2}}}}}
+% credit (invalid)
+\markstale{autoInflIntersectionCreditbase}{\dag}
+\markstale{autoInflIntersectionCreditnull}{\dag}
+\markstale{autoInflSexCreditbase}{\dag}
+\markstale{autoInflSexCreditnull}{\dag}
+\markstale{crossAccBaselineCredit}{\dag}
+\markstale{crossNCredit}{\dag}
+\markstale{meanGapIntersectionCredit}{\dag}
+\markstale{meanGapSexCredit}{\dag}
+\markstale{additivityCosCredit}{\dag}
+% ASAP (minor)
+\markstale{crossAccBaselineEduAsap}{\ddag}
+\markstale{crossNEduAsap}{\ddag}
+\markstale{eduEthnicityExplicitAsap}{\ddag}
+\markstale{eduEthnicityProxyAsap}{\ddag}
+\markstale{eduGradeExplicitAsap}{\ddag}
+\markstale{eduGradeProxyAsap}{\ddag}
+\markstale{eduGradeProxyAsapnull}{\ddag}
+\markstale{eduSexExplicitAsap}{\ddag}
+\markstale{eduSexExplicitAsapnull}{\ddag}
+\markstale{eduSexProxyAsap}{\ddag}
+\markstale{nEvalStandpointAsap}{\ddag}
+\markstale{standpointGapClassAsap}{\ddag}
+\markstale{standpointGapControlAsap}{\ddag}
+\markstale{standpointGapHobbyAsap}{\ddag}
+\markstale{standpointGapIntersectionAsap}{\ddag}
+\markstale{standpointGapOriginAsap}{\ddag}
+\markstale{standpointGapPetAsap}{\ddag}
+\markstale{standpointGapRaceAsap}{\ddag}
+\markstale{standpointGapRegionAsap}{\ddag}
+\markstale{standpointGapSexAsap}{\ddag}
+\markstale{standpointMainEffectAsap}{\ddag}
+% name lists / verdict wording / hiring factorial design
+\markstale{batteryFamilyExplicitCV}{\S}
+\markstale{batteryFamilyProxyCV}{\S}
+\markstale{autoInflIntersectionCVbase}{\S}
+\markstale{autoInflIntersectionCVnull}{\S}
+\markstale{meanGapIntersectionCV}{\S}
+\markstale{additivityCosCV}{\S}
+\markstale{batterySexProxyCV}{\S}
+\markstale{eduSexProxyAsap}{\S}
+\markstale{eduSexProxyPersuade}{\S}
+\markstale{eduEthnicityProxyAsap}{\S}
+\markstale{eduEthnicityProxyPersuade}{\S}
+\markstale{decisionDiscWinSex}{\S}
+\markstale{decisionDiscWinAge}{\S}
+\markstale{decisionDiscWinFamily}{\S}
+\markstale{decisionDiscWinIntersection}{\S}
+\markstale{decisionGapFairDiscSex}{\S}
+\markstale{decisionGapFairDiscAge}{\S}
+\markstale{decisionGapFairDiscFamily}{\S}
+\markstale{decisionGapFairDiscIntersection}{\S}
+% education substrate: stage poles widened (both corpora)
+\markstale{eduGradeExplicitAsap}{\P}
+\markstale{eduGradeProxyAsap}{\P}
+\markstale{eduGradeProxyAsapnull}{\P}
+% education substrate: PERSUADE record ids / sample / prompt selection changed
+\markstale{crossAccBaselineEduPersuade}{\P}
+\markstale{crossNEduPersuade}{\P}
+\markstale{eduEthnicityExplicitPersuade}{\P}
+\markstale{eduEthnicityProxyPersuade}{\P}
+\markstale{eduGradeExplicitPersuade}{\P}
+\markstale{eduGradeProxyPersuade}{\P}
+\markstale{eduSexExplicitPersuade}{\P}
+\markstale{eduSexProxyPersuade}{\P}
+\markstale{nEvalStandpointPersuade}{\P}
+\markstale{standpointGapClassPersuade}{\P}
+\markstale{standpointGapControlPersuade}{\P}
+\markstale{standpointGapHobbyPersuade}{\P}
+\markstale{standpointGapIntersectionPersuade}{\P}
+\markstale{standpointGapOriginPersuade}{\P}
+\markstale{standpointGapPetPersuade}{\P}
+\markstale{standpointGapRacePersuade}{\P}
+\markstale{standpointGapRegionPersuade}{\P}
+\markstale{standpointGapSexPersuade}{\P}
+\markstale{standpointMainEffectPersuade}{\P}
