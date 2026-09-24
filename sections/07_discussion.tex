@@ -13,9 +13,9 @@ remains available to any downstream non-linear computation, so the \emph{robustn
 its immediate effect, is the load-bearing question.
 \paragraph{Limitations.} Results so far are on a single 0.6B RM at a single seed, and use templated
 matched-pair items; the scaling study across eleven RMs up to 70B, and the standpoint arm on a topic-natural
-corpus, are in progress. We report no confidence intervals or significance tests, and sample sizes vary by arm
-(\crossNCredit{} down to \nEvalStandpointAsap{}), so small differences between cells should not be read as
-real. Our headline \autoinf{} statistic is a preference \emph{rate} and therefore saturates: a third of the
+corpus, are in progress. The results reported here carry no confidence intervals or significance tests, and
+sample sizes vary by arm (down to \nEvalStandpointAsap{} essays), so small differences between cells should not
+be read as real; the cross-marker design reports record-level bootstrap intervals. Our headline \autoinf{} statistic is a preference \emph{rate} and therefore saturates: a third of the
 battery cells sit at ceiling, which makes them uninformative about effect \emph{size}; the standpoint arm's
 identity gap, measured in raw reward units against a no-standpoint baseline, is the magnitude-preserving
 readout and we prefer it where available. Every hiring number reported here was produced on a \emph{synthetic}
@@ -24,7 +24,8 @@ has since been moved to real biographies (Section~\ref{sec:pipeline}), but those
 so the substrate change does not retroactively strengthen the evidence below. The accuracy guardrail
 (RewardBench-2 non-inferiority) is not yet reported, and on credit and CV the RM does not track quality at all,
 so no in-domain accuracy trade-off can be measured there \outdated{credit: to be re-measured on the corrected
-data}. Standpoint probe accuracies are near chance, so the standpoint \emph{nulling} results are
+data; this reading came from the retired direct-form \crossinf{} --- in-domain quality tracking is now the AUC
+of the decision margin in the cross-marker design}. Standpoint probe accuracies are near chance, so the standpoint \emph{nulling} results are
 weaker evidence than the standpoint \emph{gap} results. Finally, our markers are injected rather than
 naturally occurring: on the one arm where we can compare, the real-field direction is anti-correlated with the
 synthetic one, which we are following up as a validity question in its own right. \outdated{Void: that
@@ -33,8 +34,8 @@ comparison (divorced vs.\ married men, $n{=}47$ per group) has not been run.}
 Credit results also describe a filtered population: dropping applicants with three or more dependents
 removes mostly married men (130 of 149), whose share falls from 54.5\% to 48.4\%.
 \paragraph{Future work.} Beyond the scaling study: extending the erasure test to the demographic directions;
-re-running the erasure, reasoning and decision arms on the real hiring substrate, where role match supplies a
-quality signal the model can track and \crossinf{} may become interpretable as it did for essays; a
+re-running the erasure and reasoning arms on the real hiring substrate, where role match supplies a quality
+signal the model can track, so that decision-format \crossinf{} can be read there; a
 cross-domain transfer test for leak-back; and a forced-choice pairwise readout as a cross-check on the scalar
 one, which needs a generative judge since it is out-of-distribution for a scalar RM. The real corpus also
 carries its own gender label, which lets the injected-vs-real direction comparison --- so far a single

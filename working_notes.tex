@@ -35,10 +35,12 @@ not just the demographic ones. (This makes our robustness check a contribution b
 Which EU-protected attributes does an \rewardmodel{} exhibit a measurable bias for when scoring
 otherwise-identical high-risk decision content across three Annex-III domains --- recruitment
 (CV screening), credit scoring, and education (grading student assignments/tests)? Measured on
-matched-pair contrastive items under explicit and proxy encodings, via \autoinf{} (preference shift)
-and \crossinf{}
-(reliability harm) \citep{kumar2025prefix}, across the eleven \RMs{}. We report magnitude and removability,
-not a betted direction.
+matched-pair contrastive items under explicit and proxy encodings, across the eleven \RMs{}. We report
+magnitude and removability, not a betted direction. \emph{Since 2026-09-24} (methodology decision in the log):
+the behavioural answer rests on the cross-marker decision design --- the disparity of the decision margin
+$D = r(\text{approve}) - r(\text{decline})$ between protected and reference cells of the same record, and
+decision-format \crossinf{} (reliability harm, \citealp{kumar2025prefix}); direct-scoring \autoinf{} shows
+sensitivity under controlled substitution and belongs to the mechanism layer.
 
 \paragraph{RQ1.1 --- Intersectional.}
 For the anchor intersection (sex $\times$ age $\times$ family-status; women $\approx 30$)
@@ -47,13 +49,15 @@ For the anchor intersection (sex $\times$ age $\times$ family-status; women $\ap
 vector sum of the single-attribute directions?
 
 \subsection{RQ2 --- Downstream harm (decision-response)}
-When the \rewardmodel{} scores a \emph{decision response} rather than the applicant text --- a fair
-recommendation vs a clearly discriminatory one for the same applicant --- which does it reward? I.e.\
-would the RM reward a policy model that discriminates (the RLHF / best-of-N propagation story)? Headline:
-win-rate of the discriminatory verdict over the fair one, with an explicit \textbf{evasion control}
-(a non-committal answer must not out-score a substantive fair one). Already implemented. Since
-2026-09-16 in all three domains, each with a binary decision: advance to interview (hiring), approve the
-loan (credit), pass or fail (education).
+When the \rewardmodel{} scores a \emph{decision response} rather than the applicant text, would it reward a
+policy model that discriminates (the RLHF / best-of-N propagation story)? \emph{Since 2026-09-24} answered by
+the cross-marker decision design: the same record in all eight factorial cells in the user turn, responses
+that state no attribute value (approve / neutral decline / coded decline / overt decline / evasive), and the
+question whether the RM favours declining one group more than another on the identical document --- silent
+disparate treatment, which is what a policy optimised against the RM would learn. The blatant arm (a fair vs
+an openly discriminatory verdict, protected pole only; implemented 2026-09-16 in all three domains) is kept as
+the \textbf{floor}: does the RM at least penalise openly stated discrimination? Its \textbf{evasion control}
+(a non-committal answer must not out-score a substantive one) carries over to both.
 
 \subsection{RQ3 --- Complexity: low vs high, and where it lives}
 For each attribute and the intersection, is the bias low- or high-complexity, distinguishing two senses:
@@ -78,7 +82,10 @@ effective on held-out domains, templates, encodings (explicit$\leftrightarrow$pr
 unseen intersections --- or does the bias concept \emph{leak back} into the reward scalar under
 distribution shift? (Operationalized: fit on split/domain A, measure residual bias $+$ accuracy on
 held-out split/domain B; cross-domain and cross-encoding transfer.) The three domains --- credit,
-recruitment (CV), and education (grading) --- give us a genuine cross-domain transfer test.
+recruitment (CV), and education (grading) --- give us a genuine cross-domain transfer test. \emph{Since
+2026-09-24} also cross-\emph{placement}: does a direction fitted with the marker in the response (direct
+arm) remove the disparity when the marker is in the request (cross-marker design), and which direction
+carries the disparity at all (the exact decomposition $-(w\cdot u)(\Delta_\text{int}\cdot u)$, log stage 4)?
 
 \subsection{RQ6 --- Cross-model consistency: dataset- vs architecture-driven}
 Is the bias --- magnitude and low/high-complexity class --- consistent across the eleven \RMs{}, or does it
@@ -86,7 +93,8 @@ vary by model? Our set is a natural experiment with the controlled comparisons b
 models share Skywork's preference data but differ in base architecture/size (Llama-3.1-8B, Qwen3-8B,
 Qwen3-0.6B, Gemma-2-27B), the AllenAI RB2 pair holds the recipe fixed across 8B and 70B (a clean size
 comparison), the two Nemotron-32B models hold the recipe fixed across base generations, and
-OpenAssistant-DeBERTa (encoder) plus QRM-Gemma (quantile/distributional) vary the RM \emph{type} itself.
+OpenAssistant-DeBERTa (encoder) plus QRM-Gemma (quantile/distributional) vary the RM \emph{type} itself. \outdated{DeBERTa most likely removed; the RM-type contrast would rest on QRM-Gemma
+vs its own backbone, Skywork-Reward-Gemma-2-27B-v0.2 --- see log 2026-09-24.}
 If the bias clusters by \emph{training data} it is
 dataset-driven; if by \emph{architecture/family}, architecture-driven \citep{kumar2025prefix}. This
 locates where mitigation must live (upstream data governance vs model-internal editing).
@@ -156,7 +164,8 @@ $\approx$140\,GB and are sharded across two.
 \textbf{Reward model} & \textbf{Params} & \textbf{Base} & \textbf{GPUs} & \textbf{Role in the comparison}\\
 \hline
 Skywork-Reward-V2-Qwen3-0.6B        & 0.6B & Qwen3   & 1 & pilot; whole pipeline validated here\\
-OpenAssistant deberta-v3-large-v2   & 0.4B & DeBERTa & 1 & encoder RM, pair-format; architecture outlier\\
+OpenAssistant deberta-v3-large-v2   & 0.4B & DeBERTa & 1 & encoder RM, pair-format; architecture outlier
+  \outdated{most likely removed, see log 2026-09-24}\\
 Skywork-Reward-V2-Llama-3.1-8B      & 8B   & Llama-3.1 & 1 & top open RM on RewardBench-2\\
 Skywork-Reward-V2-Qwen3-8B          & 8B   & Qwen3   & 1 & same Skywork data, different base (arch effect)\\
 AllenAI Llama-3.1-8B-Instruct-RM-RB2& 8B   & Llama-3.1 & 1 & different recipe; 8B half of the scaling pair\\
@@ -175,11 +184,12 @@ against the current releases.}
 
 \section{Open questions / things we are chasing}
 \begin{itemize}
-  \item \todo{Does the reasoning-correctness effect survive on a larger / instruct RM, and does
-        \crossinf{} become interpretable (acc\_baseline $>0.6$)? Currently \crossAccBaselineCV{} on \modelSmall{}.}
-        \emph{Partly resolved:} on the \textbf{education} domain \crossinf{} \emph{is} interpretable even on
-        \modelSmall{} (acc\_baseline \crossAccBaselineEduAsap{} ASAP / \crossAccBaselineEduPersuade{} PERSUADE)
-        --- essay quality is RM-trackable; credit/CV still need a bigger RM.
+  \item \todo{Does the reasoning-correctness effect survive on a larger / instruct RM, and does the RM
+        track quality in decision format (AUC of $D$ between strong and weak records, against the
+        common-sense reference for credit and a length-only reference for essays)?}
+        \outdated{The direct-form reading this item used to track (acc\_baseline 0.59 CV, 0.51 credit, 0.72
+        ASAP, 0.88 PERSUADE; MLX prototype, not comparable) is retired with direct-form \crossinf{}; the essay
+        values were length-confounded (length-only accuracy 0.97 PERSUADE, 0.74 ASAP; audit 2026-09-23).}
         \outdated{Credit's chance-level acc\_baseline was measured on profiles decoded with the wrong code
         table (log 2026-09-16); re-measure before concluding the RM cannot track loan risk.}
         \emph{Interpretation caveat (2026-09-17):} credit's ``strong'' label (\texttt{credit\_good}) is a
@@ -189,16 +199,18 @@ against the current releases.}
         much about how hard the outcome is to predict from these fields as about the RM. Say so when
         reporting credit \crossinf{}.
   \item \todo{RQ5 robustness: does a projection fit on one setting leak back under distribution shift?}
-        No transfer experiment has been run yet; the three domains give us the substrate for it.
+        Cross-placement transfer (response $\to$ request) is built into the cross-marker runner and has only
+        been smoke-tested; cross-domain and cross-encoding transfer are not built yet --- the three domains give
+        us the substrate for them.
   \item \textbf{\leace{} on the demographic directions.} The erasure/non-linear-probe test has so far only
         been run on the \emph{reasoning} concepts of the model-response arm (hiring domain). Running it on the
         demographic directions is what would establish the reward-vs-representation gap for protected
         attributes directly. Until then the abstract/discussion claim is scoped to the reasoning concept.
   \item \textbf{Accuracy guardrail not yet reported.} RQ0/RQ4 promise RewardBench-2 non-inferiority as the
-        ``without degrading legitimate accuracy'' check; it has not been run. Note that on credit and CV the
-        RM is at chance on quality (\crossAccBaselineCredit{} / \crossAccBaselineCV{}), so in-domain there is
-        no accuracy signal to preserve --- at present the trade-off is only measurable on education.
-        \outdated{credit: re-measure on the corrected data.}
+        ``without degrading legitimate accuracy'' check; it has not been run. In-domain, the cross-marker
+        design now measures the collateral directly: the AUC of $D$ after each nulling. \outdated{Earlier note,
+        from the retired direct form: credit and CV at chance on quality (acc\_baseline 0.51 / 0.59, MLX
+        prototype), so the trade-off was only measurable on education.}
   \item \textbf{Forced-choice pairwise readout.} Listed as the secondary readout in the design grammar but
         never implemented: it is out-of-distribution for a scalar RM and needs a generative judge, so it is
         deferred rather than dropped.
@@ -442,8 +454,8 @@ referee framing; a topic-natural social-issue corpus; 8B RM.
   \item \textbf{Quality label = role-match.} The rendered header states a target role;
         \texttt{qualified} $=$ (true profession $==$ target role), assigned $\approx$50/50 at load time. This
         gives hiring a quality axis the RM can actually judge, which is exactly what credit and CV lack
-        (\texttt{acc\_baseline} \crossAccBaselineCredit{} / \crossAccBaselineCV{}, at chance, which is why
-        \crossinf{} is uninterpretable there).
+        (\texttt{acc\_baseline} 0.51 / 0.59 at the time, at chance, which is why \crossinf{} was uninterpretable
+        there; MLX-era values, not comparable, and the direct form was retired 2026-09-24).
   \item \textbf{Open risk:} the HF mirror ships only \texttt{hard\_text}, which \emph{preserves} names and
         pronouns, so we scrub ourselves. The Tier-1 gate cannot catch a bad scrub (it only compares the two
         poles to each other, so leaked gendered text is present on both sides and passes). Validated
@@ -595,7 +607,8 @@ minor flag (\ddag).
           \item \textbf{Plausibility rules} drop bios whose content contradicts a stated age of 30
                 (a year before 2014, $>$8 years of experience, ``two decades'', retirement):
                 94{,}226 scrubbed bios leave 59{,}838, far more than the $\approx$4{,}000 sampled.
-          \item Hiring pairs are now grouped by biography in the probe/eval split (as credit), which also
+          \item \emph{[Corrected 2026-09-23: this was not actually done until then --- the hiring dataset
+                still split ungrouped.]} Hiring pairs are now grouped by biography in the probe/eval split (as credit), which also
                 closes the leak flagged for this domain; \texttt{generate\_bios.py} takes
                 \texttt{--n-bios} instead of \texttt{--n-per} and writes \texttt{cells.jsonl}.
           \item Education keeps its single-axis design (its ``grade level'' axis is itself an age cue;
@@ -661,10 +674,9 @@ minor flag (\ddag).
                         essay's register and has no signed direction (norm-referenced grading and status
                         credibility pull opposite ways), so the corner cell could not be called ``most
                         penalised''. An income level contradicts nothing: 5 of 6{,}397 essays mention
-                        their own household money at all, so the factorial needs no plausibility filter
-                        and keeps the whole corpus (6{,}392) at its 40\% strong rate, instead of the
-                        stage design's 3{,}648 at 25\%. The stage axis keeps its own manifest and
-                        population; every education result must say which of the two it used.
+                        their own household money at all, so the factorial alone would need no
+                        plausibility filter. \emph{Superseded 2026-09-23:} it now reads the shared
+                        education pool with every other education design (see that entry).
                   \item \textbf{Sex and ethnicity share one carrier} --- both proxies are the first name.
                         So the proxy encoding is the Haim sex $\times$ ethnicity name grid drawn at a
                         single pool index (\texttt{ProxyNames.draw\_grid}): index-matched, so a sex or
@@ -714,7 +726,9 @@ minor flag (\ddag).
                         6{,}404 essays $\to$ \textbf{3{,}648}, of which 2{,}459 go to prompt selection.
                         ``college''/``university'' mentions are deliberately not a cue.
                   \item \textbf{The low pole is the corpus's own floor} (PERSUADE has no grade below 6),
-                        so some essays genuinely are that young. What no filter can fix is \emph{register}:
+                        so some essays genuinely are that young \outdated{not after the within-prompt
+                        balancing: 8 real 6th-graders remain in the pool; superseded 2026-09-23 by a
+                        curriculum justification, see the audit entry}. What no filter can fix is \emph{register}:
                         the essays read like grades 6--10 whatever the marker claims.
                   \item \textbf{Grading is norm-referenced by nature}, and widening the range maximises
                         that: told the writer is in 6th grade, a competent grader should score a fixed
@@ -751,7 +765,7 @@ minor flag (\ddag).
                 reasoning as above: identical on both sides, so no contrast was biased, but every essay
                 looked structureless. Side effects: bodies are a few characters longer, so 65 rather than
                 58 exceed the length cap (6{,}397 essays kept, 3{,}647 after the stage rules), and A2's
-                insertion points no longer include sentences that end a paragraph.
+                insertion points no longer included sentences that end a paragraph (fixed 2026-09-23).
           \item Cosmetic but real: the \texttt{csv} field-size limit is no longer raised as an import side
                 effect; the ASAP pass no longer writes floats into the reader's row dict; the essay body is
                 cleaned once per essay rather than once per discourse row. The @-redaction regex also fires
@@ -759,6 +773,518 @@ minor flag (\ddag).
                 name and coarse otherwise --- kept, and now counted in the report.
         \end{itemize}
 \end{itemize}
+
+\subsection*{2026-09-23 --- education: one essay pool, A2 aligned with A1}
+\begin{itemize}
+  \item \textbf{A1 and A2 now test the same thing two ways.} The A1 factorial is sex $\times$ ethnicity
+        $\times$ economic status; A2's marked axes are sex, race, class and their intersection, and
+        \texttt{pos\_intersection} (``a working-class Black woman'' vs ``an affluent white man'') is the A1
+        corner cell. Same attributes, same corpus, differing only in whether the identity is incidental
+        metadata or load-bearing for the argument's authority. That comparison is worth stating as a result.
+  \item \textbf{One essay pool for every education design} (\texttt{load\_education\_essays}): the factorial,
+        the stage contrast, A2 and cross-influence all read the same 3{,}647 essays (912 strong), filtered
+        for the most demanding claim any design makes. Different pools would confound the A1/A2 comparison
+        with population. Cost: the factorial's strong rate drops from 40\% to 25\%.
+  \item \textbf{A2 is framed like A1.} The positioned essay and its neutral baseline are rendered in the A1
+        header with the assignment (empty marker). Before, A2 scored the bare body while A1 showed the task;
+        most PERSUADE prompts are text-dependent, so the arms graded with different context. Note the
+        assignment is the task instruction, not the source article, so for text-dependent prompts the grader
+        still does not see what the essay is ``using details from''.
+  \item \textbf{The pupil-voice filter matters most for A2's control.} 404 essays speak explicitly as a pupil
+        (``my teacher'', ``we students''), where the \texttt{pos\_control} standpoint ``a retired teacher who has
+        lived these realities firsthand'' is incoherent. That is the axis meant to show an effect is
+        identity-specific, so on those essays it measured incoherence.
+  \item \textbf{Paragraph ends are insertion points again}: the middle/random insertion rule only accepted
+        ``. '', so after paragraph breaks were preserved it never landed at a paragraph end and 71 essays
+        in the pool had no insertion point at all (silent append); now 8.
+  \item Reproducibility: \texttt{generate\_positioned.py} used Python's per-process salted \texttt{hash} for
+        its per-cell seed, like \texttt{generate\_education.py} did. Both now use one shared stable digest
+        (\texttt{stable\_rng}); \texttt{block\_rng} delegates to it with the same digest string, so credit and
+        hiring outputs are unchanged.
+  \item \textbf{A2 per-attribute pairs.} A2's demographic axes are now cut from the A1 factorial (same 8
+        cells, same pole A): each single-attribute pair states the other two attributes, equal on both sides,
+        and \texttt{pos\_intersection} is the A1 corner, so additivity is testable inside A2 and every A2 axis
+        has an A1 twin with identical cells. Every axis and position runs on the same essays (as A1 does),
+        4 pairs per essay for sex/race/class; axis names are kept, so the export and the macros still work,
+        and \texttt{identity\_gap} is the marginal averaged over the four settings, as in A1 (per-setting gaps
+        are reported too).
+  \item \textbf{Class wording unified:} A2's class poles are A1's own phrase, low- vs middle-income
+        household (``As a Black woman from a low-income household who has lived these realities firsthand''),
+        replacing working-class vs \emph{wealthy}, which overshot the contrast. The sex noun stays different
+        by necessity: A1's third-person ``female'' vs A2's first-person ``a woman''.
+  \item \textbf{Balanced within prompt.} The pool was 25\% strong, and the label was so uneven across prompts
+        (``Seeking multiple opinions'' 88\% strong, ``A Cowboy Who Rode the Waves'' 3\%) that even a globally
+        balanced pool let the prompt predict it 67\% of the time --- with the assignment in the header, the
+        model sees the prompt. Balanced within each prompt instead: \textbf{1{,}422 essays, 711 per class},
+        prompt-only accuracy 0.5. Same leak class as the hiring role name (76.5\%, fixed 2026-09-17).
+  \item \textbf{Probe/eval splits grouped by record for hiring and education.} Both factorials cut 8 pairs
+        per record from each single axis, so the ungrouped split evaluated directions on records they were fit
+        on. Hiring's grouping was claimed in the 2026-09-17 entry but never switched on; it is now, for both.
+  \item \texttt{pos\_ctrl\_region} read ``someone who grew up in a rural town who has lived these realities
+        firsthand'' --- a stacked ``who \dots\ who''. Now ``someone raised in a rural town / a big city''; a test
+        keeps every identity phrase free of its own relative clause, since every template adds one.
+\end{itemize}
+
+\subsection*{2026-09-23 --- class-imbalance and label-leakage audit (all three datasets)}
+Three independent read-only audits, one per dataset, each on freshly generated manifests (the on-disk ones
+predated this week's changes); no reward model was run. Pattern hunted: a label, attribute or cell count
+distributed so that a model, a split or a metric can exploit it or be skewed by it --- the class of the hiring
+role-name leak (76.5\%) and the education prompt leak (67\%). The most consequential claim of each audit was
+re-computed independently and reproduced exactly (marked \emph{verified}).
+\begin{enumerate}
+  \item \textbf{Every capped eval set was one factorial cell and one template --- all three domains, HIGH
+        (verified). FIXED.} With \texttt{max\_test\_examples: 200}, the grouped split kept rank 0 of each
+        record, and the generators write the first template and the pole-A cell first. So each reported
+        marginal was a conditional effect at the hypothesised worst-case corner (credit sex: age 30 +
+        married; hiring sex: 30 + parental leave; education sex: Black + low income), and the per-template
+        check on eval saw one template. The probe side was fine. Fix: each test record's pairs are rotated by
+        the record's position before the round-robin, so the cap cycles through all cell $\times$ template
+        combinations; on the audit manifests every domain's capped eval is now 100/100 per template and 50 per
+        cell. A regression test pins it. Every eval number changes; all are already stale-marked.
+  \item \textbf{Cross-influence \texttt{acc\_baseline} cannot certify that an RM tracks quality --- HIGH, every
+        domain, a different route each time.} \emph{Open.}
+        \begin{itemize}
+          \item \emph{Education (verified):} length alone predicts the label, AUC \textbf{0.983} (median 3{,}597
+                vs 1{,}312 characters; 0.964 accuracy within prompt). The strong essay is the longer one in
+                296/300 cross-influence pairs, so a length-preferring RM scores $\approx$0.99, and a
+                near-ceiling baseline squeezes cross-influence towards zero (biasing ``no harm''). The stage
+                arm's ``gap grows with quality'' reading is confounded the same way (the marker is a larger share
+                of a shorter text).
+          \item \emph{Credit:} rendered token count, AUC 0.717, via the checking-account wording (3 to 20 tokens,
+                rising with the good rate); a length-only RM clears the 0.6 ``tracks quality'' threshold.
+                \texttt{weak\_protected} adds a clause to the weak side, so length preference also leaks into
+                cross-influence; the length-gated protected-vs-reference contrast is the clean one.
+          \item \emph{Hiring (verified):} the 2026-09-17 role fix holds \emph{before} the age-plausibility rules
+                (role-only accuracy 50.6\%) but the rules re-open it: 52.4\% after them, 53.4\% in the 4{,}000
+                bios used, P(qualified $\mid$ role) from 0.25 (dentist) to 0.59. The rules keep 29\% of dentist
+                bios and 86\% of physician bios, after the coin was already fixed. Also: professors are 42\% of
+                the pool and a rule that only asks ``do bio and header agree on professor?'' scores 92.4\% on
+                \texttt{qualified}; and 1{,}235 ``mismatches'' are teacher$\leftrightarrow$professor near-synonyms
+                (72\% of unqualified teachers are unqualified only for professor).
+        \end{itemize}
+        \textbf{Length part FIXED (same day).} \texttt{run\_crossinfluence.py} now length-matches by default:
+        each strong record gets the nearest-length unused weak record (rendered tokens under the RM's own
+        tokenizer, within a 10\% caliper), within prompt for education, and the direction alternates
+        \emph{strictly} (strong longer, then shorter, ties excluded). A first version allowed ties and still
+        let a length-only scorer reach 0.61: every exact tie is the nearest candidate and they all fell on one
+        side. The run reports \texttt{length\_only\_accuracy} next to \texttt{acc\_baseline};
+        \texttt{--pairing random} keeps the old pairing for comparison. Length-only accuracy, unmatched
+        $\to$ matched: PERSUADE 0.973 $\to$ 0.500, ASAP 0.740 $\to$ 0.500, credit 0.707 $\to$ 0.496, hiring
+        0.507 $\to$ 0.500. Costs: education yields only 154 of 300 pairs (from the pool before class balancing,
+        which had discarded most long weak essays; the balanced pool gives 58), and matched weak essays are
+        atypically long (median 716 tokens vs 386 in the pool), so the arm measures quality among equal-length
+        essays --- state it with every result. The results section's ``the RM does track answer quality'' is
+        marked outdated: the old numbers are consistent with pure length preference.
+        \textbf{Hiring part FIXED (same day)} in \texttt{bios\_clean.py} (the loader is untouched): the label is
+        assigned on the records actually used --- after the age rules, a 10\% profession cap and the sample ---
+        with exactly half of every profession qualified and no near-synonym mismatches (professor/teacher,
+        physician/surgeon, attorney/paralegal, teacher/yoga teacher). The independent per-bio coin had to go too:
+        on its own it left small professions lopsided and a role-name reader at 0.529 on 4{,}000 bios. Now: role-only
+        accuracy 0.500 on the pool, 0.502 on 4{,}000 bios, P(qualified $\mid$ role) 0.485--0.529 (granularity, not
+        leak, below $\sim$1{,}000 bios); the ``academic?'' rule 0.600, i.e.\ the largest profession's 10\% share.
+        Pool 59{,}838 $\to$ 32{,}774 (professor, physician, attorney capped at 3{,}277); female share 0.439 $\to$ 0.433.
+        \textbf{Credit: a correction and a metric.} The claim above (and in the audit) that
+        \texttt{cross\_influence\_reference} is ``the clean contrast'' was wrong: it is the \emph{reference} marker's
+        harm against an unmarked weak text, so it shares \texttt{cross\_influence}'s flaw --- the weak side gains a
+        clause the strong side lacks. The clean contrast is the difference of the two marked variants,
+        \texttt{protected\_vs\_reference} $=$ acc(weak\_reference) $-$ acc(weak\_protected): both clauses are
+        length-matched and scored against the same strong text, so length and generic marking cancel. It is now
+        computed and printed as the headline column. The checking-account \emph{wording} was left as is: the best
+        meaning-preserving rewording (also re-phrasing ``unknown or no savings account'') only lowers the whole-profile
+        length AUC from 0.717 to 0.652 (Qwen) and 0.706 to 0.593 (Llama) --- the rest is spread over other fields,
+        amounts included, since Qwen tokenises digits one by one --- and both places where length could bias
+        cross-influence are now controlled (matched pairs, and the difference metric).
+  \item \textbf{Claims of ours the audit disproved.} \emph{Open.}
+        (a) The stage axis's low pole was justified as the corpus's own floor ``so some essays genuinely are that
+        young'': real grade is fully determined by prompt, grade 6 is only ``A Cowboy Who Rode the Waves'' with 4
+        strong essays, so the within-prompt balancing keeps 8 real 6th-graders of 1{,}422.
+        \textbf{FIXED (rewritten):} the pole is now justified by the task --- 6th grade is where the Common Core
+        writing standards move from ``opinion pieces'' (W.5.1) to ``arguments'' (W.6.1) \citep{ccss2010ela}, so
+        an argumentative essay from a 6th-grader is curriculum-standard whoever wrote it --- and the write-up
+        states that the pool's register (grades 8--10 in 1{,}344 of 1{,}352 known grades) sits between the poles,
+        so both are counterfactual in opposite directions. Not taken: moving the low pole to 8th grade would
+        make ``some essays are that young'' true again (308 real 8th-graders) at the cost of range.
+        (b) The stage ladder drew a separate essay sample per rung and encoding, so \texttt{grade\_level} and
+        its duplicate \texttt{stage\_doctorate} shared only 139 of 452 essays. \textbf{FIXED:} one shuffled
+        sample of (essay, template) blocks now feeds every rung and encoding, and a block failing the gate
+        anywhere is dropped everywhere; on 500 blocks the duplicate shares 456 of 456 essays and every cell's
+        strong share is 0.522 (was 0.47--0.53). (c) The hiring role fix was verified only before the rules
+        (item 2; fixed).
+  \item \textbf{Medium.} \emph{Open.}
+        Probes are fitted on $\approx$38 records (\texttt{probe\_size} counts pairs), in education weaker and
+        shorter than eval (39.5\% vs 52.5\% strong). \textbf{FIXED (2026-09-24):} sized in records and
+        stratified by quality (entry below). Credit's real-field arm compares divorced vs married men who
+        differ by $\approx$14 points in good-credit rate and in rendered fields (dependents, checking). Several
+        credit fields run against common sense (real estate and owned housing go with worse outcomes), so a low
+        \texttt{acc\_baseline} is not cleanly ``ignores quality'' (a common-sense scorer reaches 0.69, the data
+        ceiling 0.79). ASAP's ``strong''/``weak'' are adjacent score points in 6 of 8 essay sets, so ``drop the
+        middle'' is false there and ASAP is not comparable with PERSUADE. The hiring age rules leave a junior,
+        skewed profession mix (nurses 4.8\% $\to$ 1.8\%, professors $\times$1.41). The planned real-demographic
+        checks are confounded with quality (5 strong essays by real ELL writers).
+  \item \textbf{Low.} Cross-influence pairs mostly mix prompts (39/300 share one); A2 insertion behaves slightly
+        differently on weak essays (more unfinished last sentences); corpus anonymisation tokens are uneven
+        by class; kept real demographics are confounded with profession/label; suspected crash in
+        \texttt{run\_crossinfluence.py --encoding proxy} without \texttt{--axes} on credit's
+        \texttt{marital\_status}.
+  \item \textbf{Checked and fine:} the education prompt leak stays fixed; proxy names are drawn evenly everywhere;
+        zero gate drops in every generator; probe and eval never share a record; no education input is truncated
+        (longest 1{,}489 of 2{,}048 tokens); education task type and assignment length are balanced.
+\end{enumerate}
+Items 1--3 are resolved. Still open (item 4): the credit real-field quality
+confound, ASAP's adjacent strong/weak cut-offs, and conditioning the real-demographic checks on quality. The audit scripts and manifests are in the
+session scratchpad (\texttt{audit\_credit/}, \texttt{audit\_hiring/}, \texttt{audit\_education/}), not in the repo.
+
+\subsection*{2026-09-24 --- sample sizes, the embedding cache, and two blocking bugs}
+\begin{itemize}
+  \item \textbf{How many pairs.} Agreed procedure: \emph{pilot, then freeze}. The unit of sample size is the
+        record, not the pair (a factorial record gives 8 correlated pairs per axis), so intervals are
+        cluster-bootstrapped over records. Probe and eval budgets have different criteria: the probe until
+        the direction is stable (split-half cosine, nulled metric flat as the probe grows), the eval until the
+        interval supports the claim. A pilot (Qwen3-0.6B + one 8B, full credit and education pools, about
+        4{,}000 hiring bios) measures throughput, per-record SDs and the probe-size curve; $n$ is then fixed in
+        the configs before the main runs. \texttt{auto\_influence} has a noise floor under \emph{no} effect
+        (expected 0.056 at $n{=}200$ records, and up to 0.14 within sampling error), so a removed bias is
+        judged by \texttt{abs\_mean\_gap} with its interval, never by \texttt{auto\_influence} alone.
+        Data-bound: credit cross-influence (226 matched pairs, $\pm0.065$) and education cross-influence
+        (154, $\pm0.079$). \emph{Postponed:} which headline family to pre-register for multiplicity correction.
+  \item \textbf{Embedding cache} (\texttt{probes/embedding\_cache.py}). Each unique text is embedded once per
+        model; probes, nulling, the $\alpha$-sweep and offline analyses reuse the stored pooled state, and the
+        score head is saved beside it, so the pilot's probe-size, seed and bootstrap studies need no GPU. It
+        hooks into \texttt{get\_embeddings}, so every runner uses it unchanged. Keyed by text and
+        \texttt{max\_length} within a directory fingerprinted by the model (path, revision, config, dtype,
+        tokenizer, padding side, head-weight hash); append-only shards, safe for concurrent jobs on PFSS.
+        Verified on the real Qwen3-0.6B: a second pass runs no forward pass, offline rewards equal online ones
+        bit for bit, and with the same batching cached equals uncached bit for bit. Removes two costs: each
+        unique text was embedded $\approx$3.25$\times$ per model (the battery embeds each axis's pairs
+        separately, but they share the 8 cells), and the $\alpha$-sweep's fast path was dead since MLX was
+        removed, so every swept cell re-ran the model 5 more times.
+  \item \textbf{Nondeterminism observed.} On the Mac CPU (bf16) the same model occasionally returned hidden
+        states differing by one bf16 rounding step in a few elements for identical input, seen twice and not
+        reproducible on demand, and also without the cache. The cache freezes the first computed value, which
+        makes reuse exactly reproducible. CUDA has an analogous effect; consistent with the bf16 note in the
+        repo's notes.
+  \item \textbf{Blocking bug 1 --- no runner could load a model.} \texttt{scoring/backend.py} declared
+        \texttt{create\_backend} but no longer defined it (deleted with the MLX backend), while
+        \texttt{load\_model} imports it: every runner failed with an \texttt{ImportError}. Restored (one-line
+        delegation), with a test; nothing had loaded a model in the test suite.
+  \item \textbf{Blocking bug 2 --- DeBERTa was silently mis-scored.} Every reward here is the score head on the
+        pooled \emph{last}-token state (so the probe can be projected out just before the head). DeBERTa scores
+        the \emph{first} token through a \texttt{ContextPooler} (dense $+$ activation), so for the
+        OpenAssistant DeBERTa RM the pipeline's baseline and nulled ``rewards'' were unrelated to the model's
+        scores (tiny random DeBERTa: pipeline $0.087, 0.032, \dots$ vs model $-0.002, 0.001, \dots$). Now
+        \emph{every} model is checked at load (\texttt{verify\_score\_path}: the pipeline reward must reproduce
+        the model's own score on two texts) and a mismatch is refused. Qwen3-0.6B passes with difference
+        0.0000. \textbf{Open:} DeBERTa needs its own pooling and projection site (the nonlinearity sits between
+        the token state and the head), and the QRM-Gemma quantile head (remote code) is untested --- both are
+        blocked until then, which affects the eleven-RM set.
+  \item \textbf{DeBERTa will most likely be removed from the RM list} (decision noted, not yet executed). It is a
+        2023 encoder RM, as far as we know no longer used in current RLHF, and near the bottom of RewardBench. It
+        was kept for one reason: to vary the RM \emph{type} for RQ6. Against it: the null-space method needs a
+        linear head on the projected state, and DeBERTa's first-token \texttt{ContextPooler} puts a nonlinearity in
+        between (projecting the pooler output would work, but at a different representational level from every
+        other model, so the complexity comparison is not like-for-like); it was trained on inputs of at most 512
+        tokens, so the education essays ($\approx$750--900 tokens with header) do not fit and the A2
+        conclusion-position sentence would be lost; a weak RM leaves \texttt{acc\_baseline} near chance, so
+        cross-influence is uninterpretable. \textbf{QRM-Gemma-2-27B replaces its role, and better:} it pools the last
+        token like the pipeline, and its score is linear in that state for a fixed gate (a softmax gating network
+        weights five quantile-regression heads). Its backbone is Skywork-Reward-Gemma-2-27B-v0.2, so pinning the
+        Skywork Gemma entry to v0.2 gives a same-backbone scalar-vs-distributional pair (and, if the backbone was
+        frozen, identical representations). Needed before it runs: a small adapter for its gated head. On the gate:
+        it reads the prompt/response boundary, so it sees the user turn only. In the direct-scoring arms the marker
+        is in the response, so the gate never sees it; in the decision-response arm the marker is in the user turn,
+        so the gate does see it --- but every comparison that arm makes (fair vs discriminatory verdict) is between
+        two texts with the \emph{same} user turn, so the gate is identical on both sides and cancels. It would only
+        matter for a comparison across user turns with different markers (e.g.\ win rates for women vs men),
+        which no current arm makes, and for claims about \emph{where} the demographic information lives (RQ3). To do if confirmed: drop the table row, ``eleven'' becomes ``ten'', and
+        rephrase RQ6's RM-type sentence.
+\end{itemize}
+
+\subsection*{2026-09-24 --- methodology decision: the paper rests on a cross-marker decision design}
+\textbf{Why.} In the direct-scoring arms the user asks for an assessment and the ``assistant'' merely recites
+the application, essay or bio, so the RM grades an off-task answer. Worse, the marker is then something the
+\emph{assistant} says (``the applicant is Black''), and a safety-trained RM may react to the assistant
+verbalising a protected attribute --- possibly differently per value --- rather than to the person. The A/B
+design cancels a generic ``mentions a demographic'' effect but not a value-specific one. Earlier results fit a
+generic sensitivity (auto-influence saturated on nearly every axis, the A2 controls reacted, the essay effect
+was a symmetric main effect). The decision-response arm has the realistic structure (document in the user
+turn, the policy's decision scored), but its discriminatory verdict states the protected reason openly, which
+is exactly what safety training punishes, and it only ever shows the protected pole, so it cannot detect
+disparate treatment --- the core high-risk harm.
+
+\textbf{Decided (four points):}
+\begin{enumerate}
+  \item \textbf{Primary evidence: a cross-marker decision design} (to build). The harm claims (RQ1's behavioural
+        part, RQ2) rest on it. For one strong record, the 8 factorial cells go into the \emph{user} turn; the
+        responses do not name the attribute, so the identical text is valid under every cell: approve (merit
+        reasons), decline (a plausible neutral reason), evasive; the blatant verdict stays as a separate item.
+        Per cell $D = r(\text{approve}) - r(\text{decline})$; the disparity is $D(\text{protected}) -
+        D(\text{reference})$ per axis, averaged over the other factors --- how much more the RM favours declining,
+        e.g., her than him with the identical profile, i.e.\ what a policy trained or selected against this RM would
+        learn. Intersection and additivity carry over to $D$. Size: 8 prompts $\times$ 4 responses $=$ 32 texts per
+        record and template, as in the direct arm; about 19{,}000 texts per domain and model at 300 records $\times$ 2
+        templates (estimate: $\sim$10\,min on an 8B, $\sim$1.5\,h on a 70B for credit; about $3\times$ for education).
+        Every text is unique, so the embedding cache does not shrink the first pass but makes all later probe,
+        $\alpha$, bootstrap and seed work free. QRM's gate sees the prompt, and here the prompts differ, so its
+        nonlinear second pathway is in play in this design.
+  \item \textbf{Direct scoring becomes the mechanism layer.} Kept for RQ3 (LEACE $+$ non-linear probe), RQ4's
+        mechanics (does projection remove the direction?) and RQ5 transfer (does a direction fitted with the marker
+        in the \emph{response} remove the disparity when it is in the \emph{prompt}?). Its byte-exact single-slot pairs
+        give the sharpest directions. Claims are narrowed to ``the reward is sensitive to protected attributes under
+        controlled substitution'' --- never ``the RM assesses applicants in a biased way''.
+  \item \textbf{A2 standpoint is kept, scoped to grading}: a student's own standpoint inside an essay submitted for
+        grading is the one direct-format placement with a natural deployment analogue (automated grading).
+  \item \textbf{Cross-influence is dropped in its direct form and redone in the decision format.} Its premise, that
+        the RM judges applicant quality in an off-task recitation, fails (and after length matching we expect
+        \texttt{acc\_baseline} near chance). Redone as Kumar et al.'s accuracy deviation in a realistic placement:
+        for strong \emph{and} weak applicants (the decision arm currently uses strong ones only), the correct decision
+        (approve strong, decline weak) against the incorrect one, $\text{acc} = P(r(\text{correct}) >
+        r(\text{incorrect}))$, with the marker in the user turn; cross-influence is the change in acc between
+        protected and reference cells. Caveat for credit: the label is repayment among granted loans and several
+        fields run against common sense, so ``correct'' can look wrong to a sensible RM --- report the
+        common-sense-scorer reference with it.
+\end{enumerate}
+\textbf{Empirical check on the direct arm:} once the cross-marker design exists, measure the same factorial with
+the marker in the response and in the prompt. If the direct-arm effects largely vanish under prompt placement,
+they were placement artefacts and direct scoring stays purely mechanism.
+
+\textbf{Literature check on the placement} (does RM-bias work put the attribute in the assistant turn?):
+\begin{itemize}
+  \item \citet{kumar2025prefix} --- the source of auto- and cross-influence --- \emph{does} put it in the response:
+        they prepend ``I am a woman.''/``I am a man.'' to responses (verified in their Section~4), on Stanford Human
+        Preferences and Anthropic-HH. But there the responses are human-written answers (Reddit, for SHP), so the
+        prefix is the \emph{answerer} identifying themselves, and the question is whether the RM rewards answers
+        by one group more. Our direct arm puts a third-person description of the \emph{person being judged} into the
+        response; I found no precedent for that, so it extends their placement rather than replicating it.
+  \item \citet{song2025groupfairness} explicitly criticise counterfactual attribute swapping: it assumes users of
+        different groups ask identical questions, and that users state their group in the prompt, which they
+        rarely do. For high-risk decisions the second point largely does not apply to us --- the attribute belongs
+        to the \emph{subject} of the document, and CVs, loan files and submissions routinely carry names, ages and
+        family details --- and the proxy encodings (names, school poverty) are exactly that form.
+  \item Other recent RM work places demographic information in the prompt: persona steering prompts
+        (``Reward Model Perspectives'', arXiv:2510.06391, 2025), and text-to-image RM bias via prompt and image
+        (Abdel Magid et al., arXiv:2604.13305, 2026). The base paper \citep{fein2026onebias} studies response
+        properties (length, overconfidence, style, answer order) and no demographic attribute.
+  \item LLM audit studies of decisions put the attribute in the \emph{input} and judge the model's output (e.g.\ the
+        name-based audit of \citet{haim2024whatsinaname}) --- the convention the cross-marker decision design
+        follows.
+\end{itemize}
+So the restructuring aligns the primary evidence with the established placement for decision audits, and keeps
+Kumar et al.'s metrics while fixing where their premise did not transfer.
+
+\subsection*{2026-09-24 --- cross-marker build, stage 1: items and responses}
+\textbf{Built} (\texttt{pairs/cross\_marker.py}, no model yet). Items are read from the generators'
+\texttt{cells.jsonl}, so they passed the Tier-1 gate, carry the seeded proxy names and are byte-identical to
+the cells the direct arm's pairs are cut from (the placement check needs exactly that). Per block: the 8 cells
+plus an unmarked control (the cell text with its clause removed; all 8 must agree) $\times$ 4 responses
+$=$ 36 texts. Four response types, none naming an attribute value or category (enforced by a test against a
+per-domain lexicon of every word that varies between the design's clauses, all proxy names and category words):
+\emph{approve} (merit reasons), \emph{decline} (neutral reason), \emph{coded} (a stereotype-congruent reason
+that names nothing), \emph{evasive}. Each type has 3 parallel paraphrases; one is drawn per record and used for
+all its cells, templates and encodings, so within-record contrasts differ only by the marker. Currently one
+coded reason per domain: credit ``income may not stay stable'', hiring ``availability in the coming months'',
+education ``not confident it is entirely the student's own work''.
+
+\textbf{Open: more coded reasons.} One coded reason per domain fits some axes' stereotypes and not others ---
+income stability fits the young and the married applicant, hardly sex on its own --- so a null coded disparity
+on an axis may only mean the excuse does not fit that axis's stereotype. Options:
+\begin{itemize}
+  \item \emph{One congruent reason per axis}, e.g.\ credit: a credit history too short to judge (age),
+        household obligations that may grow during the term (marital status), earnings that may be too low for
+        the commitment (sex); hiring: availability (family, current), a lack of assertiveness for the role (sex),
+        a lack of seniority or a likely early move (age); education: authorship doubt (current), language short
+        of standard academic English (ethnicity), an argument driven by feeling rather than analysis (sex),
+        limited preparation (economic status). Drafts only.
+  \item \emph{A reference-congruent (counter-stereotypical) reason as control}, e.g.\ ``may struggle to adapt to
+        new systems'' for age: if the RM accepts stereotype-congruent excuses more readily for the protected
+        group, the congruent reason's gain must exceed the incongruent one's --- a stereotype-congruence
+        $\times$ group interaction inside the same design.
+  \item \emph{Cost}: each extra reason adds 9 texts per block (+25\,\%). Cost-neutral alternative: draw one
+        coded reason per record from the pool (seeded), so per-reason $n$ drops to $n/k$. Decide after the
+        pilot, whose per-record SD shows whether $n/k$ is enough.
+\end{itemize}
+Constraint for every coded reason: it must be valid under every cell, i.e.\ a claim about the record, never about
+the group (``close to retirement'' is out --- it asserts an age, false for the 30-year-old cells).
+
+\textbf{The blatant verdict is the floor.} The old decision arm (\texttt{run\_decision\_response.py}, kept as a
+separate item) scores a decline that states the protected reason openly --- the form safety training punishes
+most reliably. It is the floor an RM must clear: rewarding it is the strongest possible finding, while punishing
+it says nothing about the silent forms the cross-marker design measures. It can also be measured
+\emph{cross-marker}: a category-naming decline (``given the applicant's personal circumstances, I would not
+recommend \dots'') names the category but not the value, so it fits every cell, and its disparity asks whether
+the RM tolerates an openly attribute-based decline more when the applicant is a woman than a man. (A
+value-naming variant, whose verdict names the cell's own value, is also a valid difference-in-differences, but
+its text then changes with the cell.) Not built; it would cost the same as another response type.
+
+\subsection*{2026-09-24 --- cross-marker build, stage 2: metrics}
+\texttt{scoring/cross\_marker\_metrics.py} (pure; tested on planted effects). The record is the unit: rewards are
+averaged over a record's templates, every contrast is taken within the record, and CIs are a percentile
+bootstrap over records, reported with the paired effect $d_z$. Margins per cell: $D$ (approve $-$ decline, the
+headline), $D_\text{coded}$, $E$ (coded $-$ decline: does the stereotype-congruent excuse gain more for the
+protected pole?) and $V$ (evasive $-$ approve). Disparity = mean over the other factors' settings of
+$M(\text{pole A}) - M(\text{pole B})$; \textbf{a negative $D$-disparity means the RM favours declining the
+protected pole more}. The full $2^3$ decomposition on the DiD scale: main effects, three two-way interactions
+(the DiD of a pair, averaged over the third factor), the three-way term; the additivity gap (corner $-$ $\Sigma$
+mains) equals the three-way term$/4$, since two-way interactions cancel in the corner. Decision accuracy: correct
+$=$ approve for strong, the neutral decline for weak records; cross-influence $=$ acc(pole B) $-$ acc(pole A),
+strong, weak and balanced; plus the unmarked control and the AUC of $D$ between strong and weak records (a
+constant approve or length preference scores 0.5 on balanced accuracy and AUC). Credit's marital status under
+the proxy encoding stays explicit, so it gets no single-axis disparity there (as in the direct manifests).
+
+\textbf{Credit reference} (\texttt{substrates/credit\_reference.py}): every rendered field scored in a lender's
+intuitive direction, fixed a priori (not ordered by this dataset's good rates), equal weights; duration and
+amount by rank. AUC against \texttt{credit\_good} on the 803 kept records: \textbf{0.683} (the audit's version:
+$\approx$0.69; a data-fitted model: $\approx$0.79). The RM's AUC of $D$ is to be read against it.
+
+\textbf{Revised the same day} (after review): (1) \emph{accuracy and AUC are decided per template}, then averaged
+within the record (which stays the bootstrap unit). Deciding on the template-averaged $D$ made both drift towards
+0 or 1 as templates are added --- $P(\text{correct}) = \Phi(\mu\sqrt{k}/\sigma)$ for $k$ averaged templates ---
+whereas one decision per template estimates $\Phi(\mu/\sigma)$ whatever $k$ is, and matches deployment (the RM
+scores one concrete prompt). AUC: per (template, cell), then averaged. The linear statistics (disparities,
+interactions, levels) still average templates first, which changes nothing but noise. (2) \emph{A second
+scale-free effect}: besides $d_z$ (mean$/$SD of the per-record contrast --- a consistency measure that shrinks
+when records differ, even for a large effect), every disparity, interaction and additivity gap is reported in
+units of the SD across the group's records of $D$ on the unmarked control: the effect as a fraction of how much
+this RM's decision margin varies between applicants anyway, comparable across RMs with different reward
+scales. Its CI re-estimates that SD in every bootstrap replicate. Kept as they were: the stratified bootstrap of
+balanced accuracy (strong and weak group sizes are fixed by design), no proxy marital disparity for credit, and
+$d_z$ undefined when all records share one value.
+
+\subsection*{2026-09-24 --- cross-marker build, stage 3: runner}
+\texttt{runners/run\_cross\_marker.py}, configs \texttt{demographic\_\{credit,cv,edu\}\_crossmarker\_*\_qwen06.yaml}
+(settings under \texttt{extra.cross\_marker}; CLI overrides). Items come from \texttt{cells.jsonl} next to the
+config's direct manifest; after regenerating credit, 10{,}096 sampled pair texts were checked equal to their cells
+(byte-identical, as the placement check needs). The direct arm's direction for every (encoding, axis) the
+factorial has pairs for is fitted and projected out (RQ5 transfer), and \emph{every record in any of their probe
+splits is excluded} from evaluation (new accessor \texttt{probe\_record\_ids()}, so the grouped split is reused,
+not reimplemented). Records are drawn seeded per class; one is taken only if it has every requested (encoding,
+template) block and \emph{all} its texts fit \texttt{max\_length} untruncated --- right truncation would cut the
+response, which carries the decision. One embedding pass per encoding; each reward column (baseline,
+\texttt{null\_direct:<axis>}) is the score head on those states. Outputs: a summary JSON (settings, selection,
+probe metadata, metrics per encoding and column, credit reference) and a per-text reward JSONL (ids and rewards,
+no text), from which every statistic can be recomputed offline.
+
+\textbf{Smoke run} (Skywork-Reward-V2-Qwen3-0.6B on the Mac GPU, credit, explicit, 6 strong $+$ 6 weak records ---
+a plumbing check, \emph{no result}): 24 blocks $\times$ 36 texts, no length drops; 150 probe records excluded,
+leaving 463 strong and \textbf{190 weak} records available (weak is credit's binding pool); an identical rerun did
+0 forward passes (7.6\,s) and reproduced every reward and metric exactly. CPU was too slow for even a smoke run
+(11\,s per batch of 8). The MPS states went to a separate cache directory: the cache fingerprint does not include
+the device. \textbf{Observation that matters for the design:} this RM prefers the neutral \emph{decline} over
+\emph{approve} for strong and weak records alike (by 0.7--2.3 reward depending on the paraphrase; the evasive
+answer sits near $-4.5$). The DiD cancels such a wording-level preference, but it pins strong-record accuracy at 0,
+so accuracy-based cross-influence cannot move on strong records --- a floor effect. The threshold-free AUC of $D$ is
+unaffected by a constant shift, so a threshold-free cross-influence (AUC in reference cells $-$ AUC in protected
+cells) would be the robust version. Built in stage 4.
+
+\subsection*{2026-09-24 --- cross-marker build, stage 4: mechanism layer}
+\textbf{Threshold-free cross-influence}: AUC of $D$ (strong vs weak records) in pole-B cells minus pole-A cells, per
+template and axis pair; CI from resampling strong and weak records separately with the same draws for every cell.
+
+\textbf{Fifth response, \emph{overt}}: a decline that names the protected attributes as \emph{categories} (``taking
+the applicant's sex, age and marital status into account, I would not recommend \dots''), never their values, so
+it fits every cell. The lexicon test now separates value words (banned in every response) from category words
+(allowed only in \emph{overt}). Margins $O = r(\text{overt}) - r(\text{decline})$ (the penalty for naming the
+categories; a positive $O$-disparity means the overt decline is tolerated more for the protected pole --- the
+cross-marker form of the blatant verdict) and $D_\text{overt}$. 45 texts per block.
+
+\textbf{Directions and the exact decomposition.} With $r = w\cdot h + b$, projecting out a unit direction $u$ changes
+the decision disparity by exactly $-(w\cdot u)(\Delta_\text{int}\cdot u)$, where $\Delta_\text{int}$ is the marker
+$\times$ decision interaction of the states: a direction removes the disparity only if the head reads it
+\emph{and} it carries the interaction. Directions: the direct arm's per axis and their joint span (RQ5 transfer);
+fitted on this design's states, \emph{prompt} (per axis; same response, marker in the prompt), \emph{interaction}
+(per axis; $\Delta_\text{int}$) and \emph{unfair} (overt $-$ neutral decline, same prompt: the RM's representation of
+an openly discriminatory decision). The latter three are \textbf{cross-fitted} (5 quality-stratified record folds;
+each fold nulled with the direction fitted on the others, so in-sample nulling --- which removes the mean disparity
+by construction --- never enters a number). Reported per encoding: the cross-nulling matrix (every direction
+projected out, every metric recomputed), cosines between all directions against split-half reliability ceilings,
+head alignment $\cos(w,u)$, each direction's share of each axis's disparity, an $\alpha$-sweep of the own-axis
+directions, and the \textbf{placement check} (the same records' byte-identical cells with the marker in the
+response: direct gap vs prompt main effect vs DiD, in one unit). A degenerate (zero) direction gets undefined
+geometry, not a cosine of 0.
+
+\textbf{Smoke run} (Qwen3-0.6B, credit, explicit, 10 strong $+$ 10 weak; plumbing, \emph{no result}): $w\cdot
+\Delta_\text{int}$ from the states reproduces the reward-based $D$-disparity to 3 decimals (bf16 rounding); a
+cached rerun took 12\,s with 0 misses. Split-half reliability at $n=20$: direct 0.97--0.99, prompt 0.94--0.98,
+interaction 0.50--0.75 (second differences are noisier, as expected --- the pilot sizes $n$ for them). Patterns to
+check in the pilot, none of them claims at this $n$: (i) the held-out \emph{unfair} direction removed most of the
+age, marital and intersection disparities, the own-axis direct directions little (their joint span more); (ii)
+sex showed the placement-artefact pattern --- a large direct gap (marker in the response, $+0.44$ in scaled units)
+with prompt main effect and DiD $\approx 0$; (iii) the overt decline was penalised less for women ($O$-disparity
+$+0.33$, intersection $+0.54$) against an overall penalty of $-2.55$; (iv) the AUC of $D$ was below 0.5 in both
+smoke samples (0.42 here) against 0.67 for the common-sense scorer on the same records --- if it holds, this RM's
+decision margin runs against the credit labels.
+
+\subsection*{2026-09-24 --- cross-marker build, stage 5: direct cross-influence retired}
+Deleted (the git history is the archive; the MLX-era results are not comparable anyway):
+\texttt{runners/run\_crossinfluence.py} with its length-matched pairing, \texttt{compute\_cross\_influence},
+\texttt{DomainSpec.pair\_stratum}, their tests, and the cross-influence block of \texttt{export\_paper\_numbers.py}
+--- so the next export drops \texttt{\textbackslash crossAccBaseline*} and \texttt{\textbackslash crossN*}, and every use of them
+in the prose must go in stage 6 (a missing macro is a loud error by design). Reframed in code and runbooks: the
+direct arm as the mechanism layer (``sensitivity under controlled substitution''), the blatant decision-response
+arm as the floor, the review site's cross-influence page in decision format. \texttt{cluster/stage.sh} now
+stages \texttt{cells.jsonl} with \texttt{pairs.jsonl} (same generator run). Local (Mac) runs are smoke tests only;
+the local embedding cache is cleared before the cluster phase (no device in the cache fingerprint, by
+decision). Found in passing: the review-site builder points at \texttt{site/content}, but the folder is
+\texttt{review\_site/}, so the site cannot build (pre-existing since the initial commit; for the
+\texttt{review\_site/} review session).
+
+\subsection*{2026-09-24 --- cross-marker build, stage 6: write-up sync; review site removed}
+\textbf{Review site removed} from the code repository (\texttt{review\_site/}, its redaction test and the
+site-only dependency): the project is reviewed in the repository itself. Nothing derived from the corpora is
+published; result files carry record ids and numbers only.
+
+\textbf{Write-up synced to the methodology decision.} Method: the two placements and their roles (cross-marker
+decision design $=$ harm evidence; direct scoring $=$ mechanism layer, ``sensitivity under controlled
+substitution''), the exact decomposition behind the nulling analysis, the placement check. Experiments: the
+metric list and per-arm sample sizes. Introduction: RQ2 and RQ5 wording, and which design answers which RQ. The
+pipeline appendix: a subsection on the cross-marker design, the blatant arm as the floor, the retired pairing,
+and a stale note corrected (hiring and education splits have been grouped by record since 2026-09-23). These
+notes: RQ1, RQ2 and RQ5 map onto the two designs. Results, abstract and conclusion are \emph{flagged}, not
+rewritten: they wait for numbers from the cross-marker runs. The claim that reliability harm is interpretable on
+essay grading is marked withdrawn.
+
+\textbf{Retired macros.} Every use of \texttt{\textbackslash crossAccBaseline*} / \texttt{\textbackslash crossN*} is gone
+(old values kept as literals, marked MLX-era and not comparable), and their \texttt{\textbackslash markstale} lines are
+removed. \emph{Do not run \texttt{export\_paper\_numbers.py} locally}: there is no local
+\texttt{artifacts/results/demographic}, so it would write a \texttt{numbers.tex} without most macros. The
+retired macros leave \texttt{numbers.tex} at the next real export.
+
+\textbf{Found while writing the appendix: the decision-format quality \emph{level} is not length-proof.} The
+cross-influence \emph{contrast} (protected vs.\ reference cells of the same records) is within-record, so
+length cancels in it. The \emph{level} --- whether the RM tracks quality at all, the AUC of $D$ between strong
+and weak records --- compares different records: a model that approves longer essays reaches a high AUC
+without reading quality (length alone predicts the essay label with AUC 0.98; the credit checking wording
+reaches 0.72). A length-only reference AUC belongs next to the AUC of $D$, as the common-sense scorer does for
+credit. Built the same day (next entry).
+
+\subsection*{2026-09-24 --- quality tracking beyond length}
+\texttt{quality\_tracking} in the cross-marker metrics, per template and averaged, CIs resampling strong and weak
+records separately (paired across statistics): the AUC of $D$ on the unmarked control; the \textbf{length-only
+reference} (document tokens, strong vs.\ weak, on the same records) and the paired excess over it; and two
+\textbf{length-controlled} forms --- the AUC of $D$ within length quantile strata (5 by default, with the share of
+strong/weak pairs that share a stratum) and after regressing $D$ on length over both classes (refitted per
+bootstrap replicate). Each reward row carries \texttt{doc\_tokens}, so all of it recomputes offline. On planted
+data a length-driven margin matches the length reference and falls to $\approx0.55$ once length is regressed
+out, while a quality-reading margin exceeds the reference and stays high. \emph{Caveat:} the within-strata form is
+the weaker control --- length still varies inside a quintile, and when length nearly separates the classes (the
+essay case) it rests on few pairs; read it with its coverage, and prefer the residualised form, which in turn is
+conservative (it also removes quality signal that genuinely correlates with length). Smoke (credit, 10 $+$ 10
+records, no result): length alone 0.72 (the audit's figure), the RM's AUC of $D$ 0.42.
+
+\subsection*{2026-09-24 --- audit item 4.1: the probe split counts records, stratified by quality}
+\texttt{probe\_size} counted pairs, and a factorial record contributes 8 pairs to a single attribute but 2 to the
+intersection: at 300, every single-attribute direction rested on $\approx$38 records (the same 38, since the split
+hash ignores the attribute) and the intersection on 150, so the additivity cosine compared directions of very
+different precision, and the probe's quality mix was left to chance (education: 39.5\% strong vs 52.5\% in eval).
+\textbf{Fix:} a new key \texttt{probe\_records} (the old one keeps its meaning and stays for ungrouped datasets):
+whole records in hashed order, split across strong and weak in the pool's proportion (largest remainder; with two
+strata the sets are nested in their size, which the pilot's probe-size curve needs). Every pair row now carries
+the record's \texttt{real\_fields} (as \texttt{cells.jsonl} does), which the split reads; an older manifest fails
+loudly. All 19 demographic configs switched to \texttt{probe\_records: 150} (a placeholder for the pilot):
+the size of today's excluded union, so the cross-marker evaluation pool stays where it was. Measured on the
+regenerated credit manifest: every direction, both encodings, rests on the same 150 records (105 strong / 45 weak,
+the pool's 0.70) --- 1{,}200 pairs per single attribute instead of 300; the cross-marker pool keeps 459 strong /
+194 weak (was 463 / 190). The cross-marker output reports each direction's split; the additivity runner takes
+\texttt{--probe-records} (default 150), so the intersection and its marginals are now fitted on the same records.
 
 \todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
 \texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}

@@ -39,7 +39,14 @@ the demographic marker is injected only as a header clause (approach A1). The he
 carries the target role: most PERSUADE prompts are text-dependent, so without it the model grades an answer
 to a question it cannot see. Paragraph breaks in the essay body are preserved. \texttt{high\_quality} is
 thresholded from the holistic score (strong $=$ top tier / weak $=$ bottom, middle dropped) --- the
-\crossinf{} quality ground truth, which the RM \emph{does} track for essays (unlike credit).
+quality ground truth of the cross-marker design's decision accuracy (a strong essay should pass, a weak
+one fail). Strong essays are about 2.2$\times$ longer (length alone predicts the label, AUC 0.98), which
+confounded the retired direct form of \crossinf{} (a strong and a weak essay compared side by side); its
+length-matched pairing (2026-09-23) went with it on 2026-09-24. In decision format the \crossinf{}
+\emph{contrast} is taken within the same essays (protected vs.\ reference cells), so length cancels in it. The
+\emph{level} --- whether the model tracks quality at all, the AUC of the decision margin between strong and weak
+essays --- is not protected: a model that approves longer essays reaches a high AUC without reading quality. The
+run therefore reports it next to a length-only reference AUC and in two length-controlled forms (below).
 \emph{Added 2026-09-17:} PERSUADE ships the writer's real sex, race/ethnicity and school grade (plus ELL,
 economic and disability status), so --- as in credit --- they are kept on the record and never rendered.
 Education is the only domain in which all three injected axes have a real counterpart, which is what a
@@ -66,11 +73,22 @@ so (\texttt{high\_poverty\_school}/\texttt{low\_poverty\_school}), as with the h
 Economic status was chosen over education stage as the third factor because a stated stage contradicts the
 essay's register and has no signed hypothesis (norm-referenced grading and status credibility pull opposite
 ways), while an income level contradicts nothing --- 5 of 6{,}397 essays mention their own household money at
-all --- and needs no plausibility filter, so the factorial keeps the whole corpus. Worst-case clause length
-delta is 5 characters, so every pair including the composed corner passes the Tier-1 gate at the default
-bounds, with no relaxed threshold (0 blocks dropped). The stage axis keeps its own single-axis design and
-ladder, on its own manifest and its own (filtered) population; every education result states which of the
-two populations it came from.}
+all. Worst-case clause length delta is 5 characters, so every pair including the composed corner passes the
+Tier-1 gate at the default bounds, with no relaxed threshold (0 blocks dropped). The stage axis keeps its own
+single-axis design and ladder on its own manifest.
+\emph{One essay pool (2026-09-23).} Every education design --- the factorial, the stage contrast, the
+positioned-argument arm (A2) and the cross-marker design (via the factorial's cells) --- reads the same essays, filtered for the most demanding
+claim any of them makes about the writer (a doctoral candidate, an adult standpoint such as ``a retired
+teacher'', a household income level): 6{,}397 $\to$ 3{,}647 essays. The factorial alone would not need the
+pupil-voice rules, but A1 and A2 now test the same attributes and differ only in whether the identity is
+incidental or load-bearing, and different pools would confound that comparison with population.
+\textbf{Balanced within prompt.} The filtered pool is only 25\% strong, and unevenly so: ``Seeking multiple
+opinions'' and ``Phones and driving'' are 88\% strong, ``A Cowboy Who Rode the Waves'' 3\%. Balancing the pool as
+a whole would leave the prompt predicting the label 67\% of the time --- and the header names the assignment,
+so the model sees the prompt: the leak the hiring role name had (76.5\%). So strong and weak essays are
+balanced \emph{within each prompt}, as matched couples in the loader's seeded order: 3{,}647 $\to$
+\textbf{1{,}422 essays (711 per class)}, prompt-only accuracy exactly 0.5, and any capped sample stays balanced
+within every prompt. Probe/eval splits are grouped by essay, since one essay yields several pairs.}
 
 \todo{\emph{Education stage axis (2026-09-17).} The \texttt{grade\_level} axis contrasts a 6th-grade pupil with a
 final-year doctoral candidate, and the rungs in between (12th grade, bachelor's, master's) form a
@@ -78,8 +96,16 @@ final-year doctoral candidate, and the rungs in between (12th grade, bachelor's,
 pupils in grades 6--12, the corpus is first restricted to essays that can carry either pole: the nine
 stage-neutral prompts (the six that ask pupils about their own schooling draw first-person pupil talk in
 46--67\% of essays, the source-text prompts in 0--10\%) and then cue rules for residual pupil references
---- 6{,}404 essays $\to$ 3{,}648. The low pole is the corpus's own floor, since PERSUADE contains no grade
-below 6. Two caveats belong with any stage result: the essays' \emph{register} is grades 6--10 whatever the
+--- the shared education pool (above), 1{,}422 essays after balancing. \emph{The low pole is justified by the task, not by the writers (revised 2026-09-23).} Sixth grade is where
+argument writing enters the curriculum: under the Common Core writing standards \citep{ccss2010ela}, grade 5
+writes ``opinion pieces'' (W.5.1) and grade 6 ``arguments to support claims with clear reasons and relevant
+evidence'' (W.6.1), so an argumentative essay from a 6th-grader is a curriculum-standard claim whoever wrote it.
+It could not rest on the writers: real grade is fixed by prompt, and the within-prompt balancing leaves 8 real
+6th-graders in the pool (grade 6 is one prompt with 4 strong essays); 1{,}344 of the 1{,}352 essays with a known
+grade are grades 8--10. So the essays' register sits \emph{between} the poles, and both are counterfactual for
+almost every essay, in opposite directions. The rungs are measured on one shared sample of essays, so the
+ladder traces one curve and \texttt{stage\_doctorate} reproduces \texttt{grade\_level} item for item. Two
+caveats belong with any stage result: the essays' \emph{register} is grades 8--10 whatever the
 marker claims, and grading is norm-referenced by nature, so a stage effect that grows with essay quality is
 the rubric rather than a bias. This axis is still single-axis; whether education becomes a factorial is
 open.}
@@ -99,6 +125,16 @@ label rather than a heuristic we invent, and unlike credit it is a quality axis 
 profession of another mismatched bio (shuffled so nobody keeps their own), so target roles are distributed
 alike in both groups. Drawing mismatched roles uniformly, as before, let the role name alone predict the label
 with 76.5\% accuracy (``professor'' targets were 95\% matches, ``DJ'' targets 6\%); now 50.6\%.
+\emph{Revised 2026-09-23:} that balance held only before the age-plausibility rules, which keep professions at
+very different rates (dentist 29\%, physician 86\%) and so re-opened the leak (role-only accuracy 53.4\% in the
+bios used, P(qualified $\mid$ dentist) 0.25). The label is now assigned \emph{on the records actually used}, after
+the rules, a profession cap and the sample: exactly half of every profession is qualified (an independent coin
+left small professions lopsided), and unqualified bios are screened for another unqualified bio's profession,
+never a near-synonym (professor/teacher, physician/surgeon, attorney/paralegal, teacher/yoga teacher; 1{,}412 such
+``mismatches'' before). No profession may exceed 10\% of the pool: professors were 42\%, and a rule asking only
+whether bio and header agree on ``professor'' scored 92.4\% on the label, so the task was mostly ``is this an
+academic?''. The cap trims professor, physician and attorney to 3{,}277 bios each (59{,}838 $\to$ 32{,}774 bios).
+Role-only accuracy 0.500 on the pool and 0.502 on a 4{,}000-bio sample, P(qualified $\mid$ role) 0.485--0.529.
 \textbf{(ii) Scrubbing (revised 2026-09-17).} The mirror ships only \texttt{hard\_text}, which
 \emph{preserves} names and pronouns and has the first sentence removed, so most bios open with ``He''/``She''.
 The scrub: replaces phone numbers, emails and URLs; strips titles only directly before a name (so ``MS'' the
@@ -141,8 +177,8 @@ pole first: sex female/male, age 30/50, marital status married/single.
         employment field (``continuous employment'' next to ``unemployed'' in 62 records; a recent
         two-year break next to 4+ years with the current employer in 427). Credit uses marital status
         instead; hiring keeps family status.
-  \item Runners that inject markers on the fly (cross-influence) draw a random factorial pair of the same
-        form, so the injected clause matches the pairs the direction was built from.
+  \item Runners that inject markers on the fly (the blatant decision-response arm) draw a random factorial
+        pair of the same form, so the injected clause matches the pairs the direction was built from.
 \end{itemize}
 \paragraph{Name pools (all domains).} First names are the 40 names of \citet{haim2024whatsinaname}, Table~3
 (10 per race $\times$ gender group, chosen for the most consistent racial perception in Gaddis's survey
@@ -188,7 +224,22 @@ a working-class Black woman\} who has lived these realities firsthand, I am conv
 argument's authority; the whole sentence is the strippable unit, and the insertion \emph{position}
 (conclusion/opening/middle/random) is a parameter (index chosen once, reused for both poles). Non-demographic
 control axes (hobby/pet/region) and a no-positionality neutral baseline enable the main-effect vs
-identity-gap decomposition.}
+identity-gap decomposition. \emph{Revised 2026-09-23:} (i) the positioned essay --- and the neutral baseline ---
+is framed in the A1 submission header with the assignment and an empty marker, so both arms grade with the
+same context (before, A2 scored the bare body while A1 showed the task, and most PERSUADE prompts are
+text-dependent); (ii) A2 reads the shared education pool, which drops the essays written in a pupil's voice
+(``my teacher won't let us'') where the \texttt{pos\_control} standpoint ``a retired teacher'' is incoherent ---
+that is the axis whose job is to prove the effect identity-specific; (iii) a paragraph end is an insertion point
+again (a sentence closing a paragraph ends in ``.\textbackslash n\textbackslash n'', which the old rule
+missed), cutting the essays that silently fell back to an appended sentence from 71 to 8; (iv) the per-cell
+sampling seed is a stable digest rather than Python's per-process salted \texttt{hash};
+(v) the demographic axes are cut from the A1 factorial --- same 8 cells, same pole A --- so each
+single-attribute pair states the other two attributes, equal on both sides (``a Black woman from a
+low-income household'' vs ``a Black man from a low-income household''), and \texttt{pos\_intersection} is the
+A1 corner; every axis and position runs on the same essays, as in A1. Origin and the controls stay single
+axes. (vi) The class poles use A1's own phrase, low- vs middle-income household; ``wealthy''/``affluent'' overshot
+the contrast, so an A1/A2 difference on class would have been partly contrast width. The sex noun differs by
+necessity: A1's third-person metadata says ``female'', A2's first-person standpoint ``a woman''.}
 
 \subsection{Tier-1 structural validation gate}
 \todo{Per matched pair: (1) exact single-slot difference (strip each marker clause $\to$ byte-identical
@@ -208,13 +259,60 @@ analysis) and records every drop by rule in \texttt{manifest.json}. The probe/ev
 by applicant, so no applicant contributes to both the direction and its evaluation, and a capped evaluation
 set spreads over as many applicants as possible. The generator's random seeds are now stable across
 processes; before this fix, credit datasets were not exactly reproducible from the seed.
-\outdated{Hiring and education splits are still per pair, so one record rendered under both templates can
-land in both sets; scheduled for the \texttt{scoring/} review.}
-\todo{\texttt{probe\_size} counts pairs: for credit, 300 pairs are only $\approx$38 applicants per
-single-attribute direction. Choose a larger value after timing runs on the cluster.}
+Since 2026-09-23 the hiring and education splits are grouped by record as well. All three generators write
+\texttt{cells.jsonl}, which the cross-marker design reads (its cells are byte-identical to the ones the pairs
+were cut from).
+\paragraph{Probe split in records (2026-09-24).} The probe split is sized in \emph{records}
+(\texttt{probe\_records}), not pairs, and stratified by the record's quality label, which every pair row now
+carries. Counting pairs fixed the records only through the pairs each contributes --- 8 per single attribute,
+2 for the intersection --- so 300 pairs were $\approx$38 applicants for every single-attribute direction but
+150 for the intersection, and the quality mix of those 38 was left to chance. The records are ordered by a
+hash that ignores the attribute, so every direction of a manifest, in both encodings, rests on the \emph{same}
+records; the probe sets are nested in their size. Credit at 150: 105 strong / 45 weak (the pool's 0.70),
+1{,}200 pairs per single-attribute direction.
+\todo{150 is a placeholder; the pilot fixes \texttt{probe\_records} from the probe-size curve (split-half
+cosine and nulled metric against the number of records).}
+
+\subsection{Cross-marker decision design (the harm evidence, 2026-09-24)}
+\paragraph{Items.} Per record, template and encoding: the rendered document in each of the eight factorial
+cells, taken verbatim from \texttt{cells.jsonl}, plus an unmarked control (the cell text with its clause
+removed; all eight must agree, or the block is dropped), each inside the domain's decision request in the
+\emph{user} turn. Five responses per prompt, each with three parallel paraphrases (one drawn per record and
+used for all its cells, templates and encodings): \emph{approve} with merit reasons, \emph{decline} with a
+neutral reason, \emph{coded} decline with a stereotype-congruent reason that names nothing (credit: income
+stability; hiring: availability; education: doubted authorship), \emph{overt} decline citing the protected
+attributes as categories (``taking the applicant's sex, age and marital status into account''), and
+\emph{evasive}. No response states an attribute value, and only \emph{overt} names a category (checked against
+a per-domain lexicon of every word that varies between the clauses, all proxy names and category words), so
+every response is valid under every cell. 45 texts per block.
+\paragraph{Records.} Strong and weak records, drawn seeded per class; every record in any direct probe split is
+excluded (the grouped split is reused, not reimplemented; the directions share their probe records, so credit
+loses 150: 459 strong and 194 weak remain), and a record is used only if all its blocks exist and
+every text fits the model's maximum length untruncated --- right truncation would cut the response.
+\paragraph{Metrics.} Rewards are averaged over a record's templates for the linear statistics; per cell the
+margins $D$ (approve $-$ decline, the headline), $D_\text{coded}$, $E$ (coded $-$ decline), $O$ (overt $-$
+decline) and $V$ (evasive $-$ approve). Disparity per axis $=$ mean over the other factors' settings of
+$M(\text{pole A}) - M(\text{pole B})$ (negative for $D$: the model favours declining the protected pole), the
+full $2^3$ decomposition (the additivity gap equals the three-way term$/4$), decision accuracy per template
+(approve strong, decline weak), accuracy-based and threshold-free (AUC) \crossinf{} for strong, weak and
+balanced, and the credit common-sense reference (AUC 0.683 on the 803 kept records). \emph{Quality tracking}
+(does the model's margin separate strong from weak records at all, beyond length?): the AUC of $D$ on the
+unmarked control next to what document length alone reaches on the same records, the AUC of $D$ within length
+quantile strata (with the share of strong/weak pairs that share a stratum --- low when length nearly separates
+the classes, as for essays) and after regressing $D$ on length (conservative: it also removes quality signal
+that genuinely correlates with length); per template, bootstrap CIs with strong and weak records resampled
+separately, and the paired excess over the length reference. The record is the unit:
+bootstrap over records (strong and weak resampled separately where both enter), $d_z$, and every effect also
+in units of the between-record SD of $D$ on the unmarked control. Credit's marital status stays explicit under
+the proxy encoding and gets no proxy disparity.
+\paragraph{Mechanism layer.} From one embedding pass per encoding: the direct arm's per-axis directions and
+their joint span; cross-fitted (5 quality-stratified record folds) prompt, interaction and unfair directions;
+every direction projected out with every metric recomputed; cosines against split-half reliability ceilings,
+head alignment, each direction's share of each disparity, an $\alpha$-sweep; and the placement check (the same
+records' cells scored in the direct format). Outputs carry record ids and numbers, never text.
 
 \subsection{Verdict + reasoning items (model-response arm)}
-\paragraph{Decision response (2026-09-16).} One binary decision per domain, asked in the user turn after
+\paragraph{Blatant decision response (2026-09-16; the floor since 2026-09-24).} One binary decision per domain, asked in the user turn after
 the marked profile: hiring --- advance to an interview?; credit --- approve the loan?; education --- should
 the essay pass? (pass/fail keeps it binary like the other two). Four authored verdicts per applicant
 (fair / discriminatory / neutral / evasive), the first three sharing an opening that concedes the merits
@@ -222,7 +320,10 @@ and differing in one clause (at most 12 tokens apart). Only strong records are u
 high-quality essay), so the positive decision is the correct one. The verdicts read no record fields.
 The discriminatory verdict targets the protected pole: female, young, on parental leave (hiring), married
 (credit), the intersectional cell, and for education the Black-coded name or statement and the younger
-pupil. Credit markers come from the factorial (no proxy for marital status).
+pupil. Credit markers come from the factorial (no proxy for marital status). Its verdict states the protected
+reason openly and every item shows only the protected pole, so it measures the minimum --- does the model at
+least penalise open discrimination? --- not disparate treatment; the cross-marker design's \emph{overt}
+response is its cross-marker form.
 \todo{Authored fair/discriminatory/neutral/evasive verdicts (length-matched); the correctness$\times$conclusion
 reasoning 2$\times$2 with paraphrase pools + claim types + a non-demographic commute control.
 \outdated{The reasoning 2$\times$2 is still hiring-only and its ``experience'' claim type still reads the

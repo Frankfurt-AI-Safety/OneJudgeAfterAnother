@@ -1,15 +1,47 @@
 % !TEX root = ../main.tex
 \section{Method}
 \label{sec:method}
-\paragraph{Design grammar.} Every effect is measured on matched pairs that hold content fixed and vary only
-the target attribute, so content-driven activation cancels in the difference. We report two metrics
-\citep{kumar2025prefix}: \autoinf{} (preference shift on equal-quality items) and \crossinf{} (accuracy
-degradation when the attribute is attached to the weaker option, a reliability harm that maps onto the Act's
-concern with biased false positives and negatives). Each attribute is tested in an \emph{explicit} (stated)
-and a \emph{proxy} (inferred) encoding. \paragraph{Mechanistic step.} From the matched pairs we estimate a
-\diffmean{} direction and sweep the null-space projection strength $\alpha$; a bias is \emph{reward-scalar}
-low-complexity if nulling removes it at near-zero cost to legitimate accuracy. \paragraph{Representation-level
-test.} Because null-space projection and a linear probe only interrogate the linear subspace, we additionally
-apply \leace{} (optimal linear erasure) and then train a non-linear (MLP) probe on the erased
-representation. A concept that is linearly erasable but non-linearly recoverable is entangled
-(high-complexity) regardless of what the reward scalar shows --- the discriminator at the heart of this work.
+\paragraph{Design grammar.} Every effect is measured on items that hold content fixed and vary only the target
+attribute, so content-driven activation cancels in the difference. Each attribute is tested in an
+\emph{explicit} (stated) and a \emph{proxy} (inferred) encoding, crossed in a $2\times2\times2$ factorial per
+domain. The attribute is placed in two ways, with different roles.
+
+\emph{Cross-marker decision design (the harm evidence).} The user turn presents one record --- a loan
+application, a biography, an essay --- in each of the eight factorial cells and asks for the domain's binary
+decision; the assistant turn is one of a fixed set of responses that state no attribute value (approve with
+merit reasons; decline with a neutral reason; decline with a stereotype-congruent reason; decline citing the
+protected attributes as categories; an evasive answer), so the identical response is valid under every cell.
+Per cell the reward model's decision margin is $D = r(\text{approve}) - r(\text{decline})$, and the disparity
+$D(\text{protected}) - D(\text{reference})$, averaged over the other two factors, is how much more the model
+favours declining one group than another on the identical document --- what a policy optimised against it
+would learn. The full $2^3$ decomposition of $D$ gives the intersectional and non-additive terms. Adapting
+\citet{kumar2025prefix}, \crossinf{} is the change in decision accuracy (approve a strong record, decline a
+weak one) between protected and reference cells, also in a threshold-free form (the AUC of $D$ between strong
+and weak records), a reliability harm that maps onto the Act's concern with biased false positives and
+negatives. The record is the unit of analysis: every contrast is taken within a record, and intervals come
+from a bootstrap over records.
+
+\emph{Direct scoring (the mechanism layer).} The rendered document is scored as the assistant's response to a
+neutral assessment request, and \autoinf{} \citep{kumar2025prefix} measures the reward shift between two
+byte-identical texts that differ in one marker clause. This establishes that the reward is sensitive to
+protected attributes under controlled substitution, not that the model assesses applicants in a biased way,
+and it yields the sharpest directions for the mechanistic analysis.
+
+\paragraph{Mechanistic step.} The reward is linear in the pooled final-token state, $r = w\cdot h + b$, so
+projecting a unit direction $u$ out of the state changes the decision disparity by exactly
+$-(w\cdot u)(\Delta_\text{int}\cdot u)$, where $\Delta_\text{int}$ is the marker $\times$ decision interaction
+of the states. A direction removes the disparity only if the head reads it \emph{and} it carries the
+interaction. We estimate \diffmean{} directions from both placements --- the direct arm's (marker in the
+response), and, cross-fitted over record folds, the prompt-placement attribute direction, the interaction
+direction and an ``unfair decision'' direction (attribute-citing vs.\ neutral decline) --- project each out,
+sweep the strength $\alpha$, and compare the directions' geometry against split-half reliability. A bias is
+\emph{reward-scalar} low-complexity if nulling removes it at near-zero cost to legitimate accuracy. Whether a
+direction fitted with the marker in the response removes the disparity with the marker in the prompt is a
+transfer test in its own right (RQ5), and scoring the same cells in both placements checks how much of the
+direct-scoring effect is an artefact of placing the attribute in the assistant's mouth.
+
+\paragraph{Representation-level test.} Because null-space projection and a linear probe only interrogate the
+linear subspace, we additionally apply \leace{} (optimal linear erasure) and then train a non-linear (MLP)
+probe on the erased representation. A concept that is linearly erasable but non-linearly recoverable is
+entangled (high-complexity) regardless of what the reward scalar shows --- the discriminator at the heart of
+this work.

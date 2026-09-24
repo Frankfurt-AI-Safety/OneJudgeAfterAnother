@@ -20,10 +20,14 @@ protected-attribute setting and strengthens it with a concept-erasure robustness
 attributes does an \rewardmodel{} exhibit a measurable bias for on otherwise-identical high-risk content, and
 is the intersectional effect distinct and non-additive? \textbf{RQ2} (downstream harm): when the \rewardmodel{}
 scores a \emph{decision response} rather than the applicant, would it reward a policy model that
-discriminates --- the RLHF / best-of-$N$ propagation story? \textbf{RQ3}: is that bias low- or
+discriminates --- favour declining one group more than another on an identical application --- the RLHF /
+best-of-$N$ propagation story? \textbf{RQ3}: is that bias low- or
 high-complexity, distinguishing the reward-scalar level from the representation level? \textbf{RQ4}: does
 mechanistic reward shaping reduce the harm without degrading legitimate accuracy? \textbf{RQ5}: is the removal
-robust, or does the concept leak back under distribution shift --- the reward-vs-representation gap?
+robust, or does the concept leak back under distribution shift, including from the attribute in the response
+to the attribute in the request --- the reward-vs-representation gap?
 \textbf{RQ6} (cross-model): does the bias cluster by training data or by architecture, locating mitigation
-upstream in data governance versus inside the model? We address RQ2 here by proxy, scoring authored decision
-responses rather than sampled policy outputs; RQ6 awaits the scaling run.
+upstream in data governance versus inside the model? The behavioural part of RQ1 and RQ2 rest on a cross-marker decision design (Section~\ref{sec:method}): the
+same record in every cell of the attribute factorial, placed where a real application sits, with authored
+decision responses rather than sampled policy outputs --- so RQ2 is addressed by proxy. Direct scoring of the
+document supplies the mechanism layer (RQ3--RQ5); RQ6 awaits the scaling run.

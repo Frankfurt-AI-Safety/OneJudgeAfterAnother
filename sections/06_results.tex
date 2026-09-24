@@ -9,6 +9,10 @@ Credit code-table correction and the factorial redesign (Section~\ref{sec:pipeli
 ASAP values (marked \ddag) predate a minor cleaning fix affecting 22 of 12,976 essays; values marked \S{}
 predate the switch to the validated name lists of \citet{haim2024whatsinaname} or the domain-specific
 decision verdicts.}
+\outdated{Methodology decision 2026-09-24: the direct-scoring numbers below measure that the reward is
+sensitive to protected attributes under controlled substitution (the mechanism layer), not that the model
+assesses applicants in a biased way. The harm evidence is the cross-marker decision design
+(Section~\ref{sec:method}), which has not been run at scale yet; this section is rewritten once it has.}
 
 \subsection{Direct scoring (auto-influence)}
 On the hiring (CV) domain, explicit-sex \autoinf{} is \autoInflSexCVbase{}, collapsing to
@@ -24,12 +28,11 @@ family \batteryFamilyExplicitCV{} vs \batteryFamilyProxyCV{}). All effects are b
 the $\alpha$-sweep drives them to near zero.
 
 \subsection{Cross-influence (reliability harm)}
-On credit and CV the metric is not yet interpretable on \modelSmall{} (acc\_baseline \crossAccBaselineCV{} on
-CV): a general chat RM does not track loan risk or CV quality, so the strong/weak label is not a valid ground
-truth. \outdated{For credit this rests on profiles decoded with the wrong code table, which contradicted the
-good/bad label they were paired with; whether the RM tracks loan risk must be re-measured.} On \emph{essay grading}, where the RM does track answer quality, cross-influence becomes interpretable
-(acc\_baseline \crossAccBaselineEduAsap{} on ASAP, \crossAccBaselineEduPersuade{} on PERSUADE), though the
-observed shift is a symmetric marker main-effect rather than a protected-attribute-specific harm at this scale.
+\outdated{Retired in its direct form (2026-09-24). It compared a strong and a weak record recited as the
+assistant turn, a premise that did not hold: the model was grading an off-task recitation, and on unmatched
+pairs a scorer preferring the longer text reached 0.97 on PERSUADE and 0.74 on ASAP. The earlier readings
+(acc\_baseline 0.51 credit, 0.59 CV, 0.72 ASAP, 0.88 PERSUADE, on the MLX prototype) are not comparable and are
+not reported. Decision-format \crossinf{} (Section~\ref{sec:method}) awaits the cross-marker runs.}
 
 \subsection{Which biases, across domains}
 The education domain replicates the direct-scoring picture on real essays: stating sex is a large bias
@@ -48,7 +51,10 @@ fairness. Consistently, the decision-response discriminatory-win-rate is near ze
 intersectional axes (\decisionDiscWinFamily{}, \decisionDiscWinIntersection{}).
 \outdated{The decision-response arm now covers all three domains, each with its own binary decision (hiring:
 advance to interview; credit: approve the loan; education: pass or fail), draws only strong applicants, and
-no longer reads the synthetic ``years of experience'' field; these hiring values predate that.}
+no longer reads the synthetic ``years of experience'' field; these hiring values predate that. Since
+2026-09-24 this arm is the floor --- does the model at least penalise openly stated discrimination? --- not the
+harm evidence: its verdict states the reason outright and shows only the protected pole, so a low win-rate
+says nothing about silent disparate treatment, which the cross-marker design measures.}
 
 \subsection{Standpoint-credibility (positioned arguments)}
 When the same argument is grounded in a stated first-person identity, the RM rewards it more from a

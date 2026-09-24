@@ -17,6 +17,9 @@
 %             @PERCENT1@NUM1) -- expected to be negligible, re-run for consistency.
 %   \S        inputs changed: the proxy first names are now Haim et al.'s Table 3 (every name-proxy
 %             number), and the decision-response verdicts now open without the synthetic "N years" field.
+%             Hiring's probe/eval split is also grouped by biography since 2026-09-23.
+%             And hiring's `qualified` label is re-assigned after the age rules on a profession-capped
+%             pool (2026-09-23), which changes the hiring population and every label.
 %   \P        education substrate changed: (a) the essay-id lookup keyed on the lossy `essay_id` column
 %             and merged two essays, it now keys on `essay_id_comp`, so every PERSUADE record id and the
 %             sampled set change; (b) the essays are now restricted to the stage-neutral prompts without
@@ -24,10 +27,21 @@
 %             (a)+(b) are PERSUADE-only; (c) changes the grade_level clauses in both corpora; (e) the
 %             education arm is now a sex x ethnicity x economic-status factorial, so the sex and
 %             ethnicity clauses are composite (all three attributes stated) and the ethnicity pole was
-%             corrected from white to Black in the decision frame; and
+%             corrected from white to Black in the decision frame; (f) every education design and
+%             A2 now read one shared essay pool, and A2 is framed in the A1 header with the
+%             assignment and inserts at paragraph ends too (standpoint numbers); (g) the pool is
+%             balanced strong/weak within prompt, A2's demographic axes are per-attribute pairs
+%             cut from the A1 factorial with the A1 income wording, and the probe/eval split is
+%             grouped by essay; and
 %             (d) the rendered header now carries the assignment and the body keeps its paragraph
 %             breaks, which changes every education item. The ASAP education numbers are not marked
 %             \P individually: every one of them already carries \ddag, so none is quotable either way.
+% 2026-09-24: \crossAccBaseline* and \crossN* are retired with direct-form cross-influence (the runner
+% and its exporter block were deleted); their \markstale lines went with them, and no document uses
+% them any more. They leave numbers.tex at the next export.
+% ALL marks, 2026-09-23: the capped eval split used to keep one factorial cell and one template per
+% axis (credit, hiring, education); it now covers every cell x template, so every eval number
+% changes on re-run (see the working notes' audit entry).
 % A macro may carry SEVERAL marks (two independent reasons, each cleared by its own re-run), so the
 % saved original is keyed by a counter rather than by the macro name: keying by name made the second
 % \markstale of the same macro overwrite the first one's backup with the already-wrapped definition,
@@ -45,14 +59,10 @@
 \markstale{autoInflIntersectionCreditnull}{\dag}
 \markstale{autoInflSexCreditbase}{\dag}
 \markstale{autoInflSexCreditnull}{\dag}
-\markstale{crossAccBaselineCredit}{\dag}
-\markstale{crossNCredit}{\dag}
 \markstale{meanGapIntersectionCredit}{\dag}
 \markstale{meanGapSexCredit}{\dag}
 \markstale{additivityCosCredit}{\dag}
 % ASAP (minor)
-\markstale{crossAccBaselineEduAsap}{\ddag}
-\markstale{crossNEduAsap}{\ddag}
 \markstale{eduEthnicityExplicitAsap}{\ddag}
 \markstale{eduEthnicityProxyAsap}{\ddag}
 \markstale{eduGradeExplicitAsap}{\ddag}
@@ -97,8 +107,6 @@
 \markstale{eduGradeProxyAsap}{\P}
 \markstale{eduGradeProxyAsapnull}{\P}
 % education substrate: PERSUADE record ids / sample / prompt selection changed
-\markstale{crossAccBaselineEduPersuade}{\P}
-\markstale{crossNEduPersuade}{\P}
 \markstale{eduEthnicityExplicitPersuade}{\P}
 \markstale{eduEthnicityProxyPersuade}{\P}
 \markstale{eduGradeExplicitPersuade}{\P}
