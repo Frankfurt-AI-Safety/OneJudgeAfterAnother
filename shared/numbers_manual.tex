@@ -14,7 +14,9 @@
 %   \dag      credit: German Credit was decoded with the wrong UCI code table, and the pairs now come
 %             from the sex x age x marital-status factorial -- every credit result must be re-run.
 %   \ddag     ASAP: redaction-tag cleaning changed 22 of 12,976 essays (adjacent tags such as
-%             @PERCENT1@NUM1) -- expected to be negligible, re-run for consistency.
+%             @PERCENT1@NUM1) -- expected to be negligible, re-run for consistency. 2026-09-24: the
+%             strong/weak labels are now cut per essay set with a gap (they were adjacent score points
+%             in 6 of 8 sets), which changes the balanced ASAP pool and every ASAP item.
 %   \S        inputs changed: the proxy first names are now Haim et al.'s Table 3 (every name-proxy
 %             number), and the decision-response verdicts now open without the synthetic "N years" field.
 %             Hiring's probe/eval split is also grouped by biography since 2026-09-23.
@@ -34,7 +36,9 @@
 %             cut from the A1 factorial with the A1 income wording, and the probe/eval split is
 %             grouped by essay; and
 %             (d) the rendered header now carries the assignment and the body keeps its paragraph
-%             breaks, which changes every education item. The ASAP education numbers are not marked
+%             breaks, which changes every education item; (h) 2026-09-24: A2's conclusion sentence is
+%             its own closing paragraph, and the shared pool drops essays ending in a sign-off or a
+%             fragment (1,422 -> 1,364 essays). The ASAP education numbers are not marked
 %             \P individually: every one of them already carries \ddag, so none is quotable either way.
 % 2026-09-24: \crossAccBaseline* and \crossN* are retired with direct-form cross-influence (the runner
 % and its exporter block were deleted); their \markstale lines went with them, and no document uses

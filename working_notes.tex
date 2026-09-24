@@ -235,7 +235,9 @@ evidence survives, so they are scheduled ahead of further breadth.
         divorced/separated with married/widowed men ($n{=}47$ per group) against the synthetic
         \emph{marital-status} direction; not yet run.}
         \emph{Now cheaper:} item 2 brings a second corpus with a real sex label, so this is measurable on
-        hiring as well as credit without any new annotation.
+        hiring as well as credit without any new annotation. \emph{Since 2026-09-24} every such comparison
+        follows the analysis rule for real groups (log 2026-09-24): real labels are confounded with quality,
+        length and prompt or profession.
   \item \textbf{Bias-in-Bios real CVs --- \textsc{done}.} The hiring domain now loads Bias-in-Bios
         \citep{dearteaga2019bias} instead of the synthetic CV generator (4000 matched pairs, 8 axis
         $\times$ encoding cells, 0\% gate discard). Quality is \emph{role match} (true occupation $==$ the
@@ -910,28 +912,36 @@ re-computed independently and reproduced exactly (marked \emph{verified}).
         anywhere is dropped everywhere; on 500 blocks the duplicate shares 456 of 456 essays and every cell's
         strong share is 0.522 (was 0.47--0.53). (c) The hiring role fix was verified only before the rules
         (item 2; fixed).
-  \item \textbf{Medium.} \emph{Open.}
+  \item \textbf{Medium.} \emph{Closed 2026-09-24} (one entry per item below).
         Probes are fitted on $\approx$38 records (\texttt{probe\_size} counts pairs), in education weaker and
         shorter than eval (39.5\% vs 52.5\% strong). \textbf{FIXED (2026-09-24):} sized in records and
         stratified by quality (entry below). Credit's real-field arm compares divorced vs married men who
-        differ by $\approx$14 points in good-credit rate and in rendered fields (dependents, checking). Several
+        differ by $\approx$14 points in good-credit rate and in rendered fields (dependents, checking).
+        \textbf{FIXED (2026-09-24):} exact matching (entry below). Several
         credit fields run against common sense (real estate and owned housing go with worse outcomes), so a low
         \texttt{acc\_baseline} is not cleanly ``ignores quality'' (a common-sense scorer reaches 0.69, the data
-        ceiling 0.79). ASAP's ``strong''/``weak'' are adjacent score points in 6 of 8 essay sets, so ``drop the
-        middle'' is false there and ASAP is not comparable with PERSUADE. The hiring age rules leave a junior,
-        skewed profession mix (nurses 4.8\% $\to$ 1.8\%, professors $\times$1.41). The planned real-demographic
-        checks are confounded with quality (5 strong essays by real ELL writers).
-  \item \textbf{Low.} Cross-influence pairs mostly mix prompts (39/300 share one); A2 insertion behaves slightly
-        differently on weak essays (more unfinished last sentences); corpus anonymisation tokens are uneven
-        by class; kept real demographics are confounded with profession/label; suspected crash in
-        \texttt{run\_crossinfluence.py --encoding proxy} without \texttt{--axes} on credit's
-        \texttt{marital\_status}.
+        ceiling 0.79). \textbf{Resolved (2026-09-24):} the common-sense AUC (0.683) and a length-only reference
+        are reported next to the AUC of the decision margin. ASAP's ``strong''/``weak'' are adjacent score points in 6 of 8 essay sets, so ``drop the
+        middle'' is false there and ASAP is not comparable with PERSUADE. \textbf{FIXED (2026-09-24):}
+        per-set table (entry below). The hiring age rules leave a junior,
+        skewed profession mix (nurses 4.8\% $\to$ 1.8\%, professors $\times$1.41). \textbf{Documented
+        (2026-09-24):} reported per profession in the manifest (entry below). The planned real-demographic
+        checks are confounded with quality (5 strong essays by real ELL writers). \textbf{Rule set (2026-09-24):}
+        entry below.
+  \item \textbf{Low.} Cross-influence pairs mostly mix prompts (39/300 share one; \textbf{moot}: direct-form
+        cross-influence was deleted on 2026-09-24); A2 insertion behaves slightly
+        differently on weak essays (more unfinished last sentences; \textbf{FIXED 2026-09-24}, entry below); corpus anonymisation tokens are uneven
+        by class (\textbf{documented 2026-09-24}, entry below); kept real demographics are confounded with profession/label (\textbf{rule set 2026-09-24}, entry below);
+        suspected crash in \texttt{run\_crossinfluence.py --encoding proxy} without \texttt{--axes} on credit's
+        \texttt{marital\_status} (\textbf{moot}: the runner was deleted).
   \item \textbf{Checked and fine:} the education prompt leak stays fixed; proxy names are drawn evenly everywhere;
         zero gate drops in every generator; probe and eval never share a record; no education input is truncated
         (longest 1{,}489 of 2{,}048 tokens); education task type and assignment length are balanced.
 \end{enumerate}
-Items 1--3 are resolved. Still open (item 4): the credit real-field quality
-confound, ASAP's adjacent strong/weak cut-offs, and conditioning the real-demographic checks on quality. The audit scripts and manifests are in the
+Items 1--3 are resolved; items 4 and 5 were closed on 2026-09-24 (entries below: 4.1 probe records, 4.2 matched
+real-field groups, 5.2 conclusion paragraph and sign-off rule, 4.4 ASAP cut-offs, 4.5/5.3 reported pool composition,
+4.6/5.4 the analysis rule for real groups). Every generator-side fix takes effect when the manifests are
+regenerated, which has been done for credit only. The audit scripts and manifests are in the
 session scratchpad (\texttt{audit\_credit/}, \texttt{audit\_hiring/}, \texttt{audit\_education/}), not in the repo.
 
 \subsection*{2026-09-24 --- sample sizes, the embedding cache, and two blocking bugs}
@@ -1285,6 +1295,92 @@ regenerated credit manifest: every direction, both encodings, rests on the same 
 the pool's 0.70) --- 1{,}200 pairs per single attribute instead of 300; the cross-marker pool keeps 459 strong /
 194 weak (was 463 / 190). The cross-marker output reports each direction's split; the additivity runner takes
 \texttt{--probe-records} (default 150), so the intersection and its marginals are now fitted on the same records.
+
+\subsection*{2026-09-24 --- audit item 4.2: the real-field groups are matched}
+The real-field cross-check (\texttt{run\_realfield.py}) compared the 47 divorced/separated men with 47
+married/widowed men drawn at random; the married men had a good-credit rate 14 points higher and differed in
+dependents and checking account, so its direction and gap mixed marital status with applicant quality.
+\textbf{Fix:} each divorced man is paired with a married man of the same good-credit label, checking account
+and dependents band (exact, without replacement, seeded): 47 of 47 matched. Adding savings would have cost 4 of
+the 47, so it is reported instead. The direction is fitted on the matched pairs; the gap is the mean per-pair
+difference with a bootstrap CI and $d_z$. The output reports the imbalance on every rendered field for the
+matched groups, for a random draw of the same size (the old design), and at chance --- two random samples of 47
+from the married men --- because at $n{=}47$ a many-level field differs by chance alone. Mean total-variation
+distance over the fields: matched 0.114 (50 seeds), random draw 0.154, chance 0.111; label, checking and
+dependents are exactly 0 after matching. So the remaining imbalance is at the chance level. Not run yet (needs
+the model).
+
+\subsection*{2026-09-24 --- audit item 5.2: A2's conclusion is its own paragraph; sign-offs dropped}
+A2 appended its conclusion sentence after a space, so it was glued onto the essay's last line. Weak essays far
+more often end mid-sentence (38 of 711 weak vs 5 of 711 strong in the shared pool), so the same sentence read as
+a run-on mostly on weak essays (``\dots its very hard to study I do not hold this view in the abstract\dots'').
+\textbf{Fix:} the conclusion templates (three endorse paraphrases and the neutral stance) open with a paragraph
+break, which is part of the swapped clause, so the Tier-1 strip still returns the exact body; opening, middle
+and random are unchanged. \textbf{Found while checking:} about 4\% of essays end in a sign-off or a fragment rather
+than a sentence --- ``Sincerely, PROPER\_NAME'', a bare placeholder, real names (``Gabe'', ``Sincerly, November
+Nielsen'', surnames with page numbers such as ``Tellez 2''), ``The End'', a cut-off ``It h''. The closing
+paragraph would follow the signature, and a real name can contradict the injected sex or ethnicity marker in A1
+too. A new pool rule (\texttt{ends\_with\_a\_signoff}: the last line opens with a closing formula, or is at most
+four words without terminal punctuation) drops 151 essays at similar rates per class (4.1\% of weak, 4.5\% of
+strong), so the balanced pool goes from 1{,}422 to \textbf{1{,}364 essays (682 per class)}. A scratch
+regeneration of the positioned PERSUADE manifest: every conclusion clause is a closing paragraph, 0 blocks
+dropped by the gate. Every education item changes with the pool (\P{} marks, reason (h)).
+
+\subsection*{2026-09-24 --- audit item 4.4: ASAP's classes are cut per essay set, with a gap}
+ASAP's strong/weak labels came from nearest-rank terciles per essay set. On its coarse integer scales these fell
+on \emph{adjacent} score points in 6 of 8 sets (set 1 $\le8/\ge9$, set 2 $\le3/\ge4$, sets 3--4 $\le1/\ge2$, sets
+5--6 $\le2/\ge3$), so ``drop the middle'' was false there and a ``strong'' essay could be one point above a
+``weak'' one --- unlike PERSUADE ($\le2/\ge5$ on 1--6). \textbf{Fix:} an explicit per-set table,
+\texttt{ASAP\_CUTOFFS}, with at least one score point between the classes: set 1 $\le7/\ge10$ (two raters' 1--6
+summed, so one point per rater), set 2 $\le2/\ge4$, sets 3--6 $\le1/\ge3$, sets 7 and 8 unchanged ($\le14/\ge18$,
+$\le35/\ge40$). An essay set missing from the table raises. The labels now hold 7{,}232 essays after the length
+filter (4{,}900 strong / 2{,}332 weak; 4{,}548 in the gap), with at least 150 per class in every set; after the
+shared pool's rules and the within-set balance the ASAP pool still fills its 1{,}500-essay cap (750 per class,
+42--153 couples per set). Every ASAP item changes (\ddag{} marks, reason noted). ASAP stays a replication corpus;
+the cross-marker runs use PERSUADE.
+
+\subsection*{2026-09-24 --- audit items 4.5 and 5.3: the pools' composition is reported, not corrected}
+\textbf{Hiring profession mix (4.5).} The age-plausibility rules drop bios that state long careers or early years,
+at very different rates per profession, and the 10\% cap then flattens the mix. Measured on the current pipeline
+(the loader's 94{,}226 bios $\to$ 59{,}838 after the rules $\to$ the 4{,}000 used): the rules keep 29\% of dentists,
+43\% of nurses, 55\% of surgeons, 63\% of professors and 86\% of physicians; the cap takes professors from 42.6\%
+of the loaded bios to 10.1\% of the pool, and most small professions about double their share (surgeon 4.9\%
+$\to$ 8.0\%, journalist 3.6\% $\to$ 6.3\%). Not corrected --- the label leak it caused was fixed on 2026-09-23 by
+assigning the role after the rules; the mix is a property of the population hiring results describe. Every bios
+manifest now carries \texttt{profession\_mix} (per profession: loaded, after the rules, used, keep rate, shares),
+and the generator logs the extremes. (The audit's ``nurses 4.8\% $\to$ 1.8\%'' was measured at a different stage;
+the manifest's numbers are the reference now.)
+
+\textbf{Anonymisation tokens (5.3).} PERSUADE's own anonymisation left tokens such as Generic\_Name and PROPER\_NAME,
+unevenly by class (Generic\_Name 21 strong / 5 weak, PROPER\_NAME 13 / 24 in the 1{,}422-essay pool). Most
+PROPER\_NAMEs sat in signatures, which the 5.2 ending rule drops: in the 1{,}364-essay pool 31 essays keep a token,
+21 strong / 10 weak, 20 / 5 of them Generic\_Name in the text. Kept: every contrast is within an essay, so a token
+cancels, and at 2\% of essays it cannot carry a between-essay comparison such as the AUC of the decision margin.
+Every education manifest now counts them per token and class (\texttt{placeholders}, on the essays returned); ASAP
+has none (its @-redactions become ``someone'').
+
+\subsection*{2026-09-24 --- audit items 4.6 and 5.4: an analysis rule for comparisons between real groups}
+The real attributes kept on the record (PERSUADE writer sex, race/ethnicity, ELL and economic status; Bias-in-Bios
+gender; credit's real marital status) are confounded with what the model judges. In the current PERSUADE pool
+(1{,}364 essays, balanced strong/weak within prompt) 73\% of the Black writers wrote weak essays and only 103 are
+ELL writers; in the hiring pool a single profession can be 88--94\% one gender. Any comparison between real
+groups --- a reward level or a within-record quantity such as an injected marker's effect --- follows one rule:
+\begin{enumerate}
+  \item strata of quality label $\times$ document-length tercile;
+  \item within each stratum, the prompt (education) or profession (hiring) as a fixed effect;
+  \item only strata with $\ge30$ records per group, pooled by stratum size, with the coverage reported; coverage
+        below 0.5 $\Rightarrow$ n/a;
+  \item a bootstrap over records for the interval;
+  \item the estimate without the fixed effect reported alongside (sensitivity).
+\end{enumerate}
+Unconditional contrasts between real groups are not reported. \emph{Why a fixed effect and not a third stratum:}
+measured on the current pools, adding the prompt or profession as a stratum leaves almost nothing usable
+(PERSUADE sex 0.19, race 0.00, economic 0.20, ELL 0.00; Bias-in-Bios gender 0.08 of the records), whereas quality
+$\times$ length alone covers PERSUADE sex 0.99, White vs Hispanic/Latino 0.99, Black vs white 0.79, economic status
+1.00, ELL 0.49 (so ELL comparisons are n/a), and Bias-in-Bios gender 1.00. The credit real-field cross-check meets
+the rule by exact matching (item 4.2). Nothing implements the rule yet --- no real-group analysis exists in the
+code; the first one gets it as a shared function with tests. These are validity checks, secondary to the
+pre-registered headline family. \textbf{This closes audit items 4 and 5.}
 
 \todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
 \texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}

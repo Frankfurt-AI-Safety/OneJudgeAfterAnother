@@ -30,7 +30,12 @@
 \end{enumerate}
 The real sex, marital status and age are kept on the record (never rendered) for stratified analysis and for
 the real-field cross-check, which now contrasts divorced/separated with married/widowed men ($n{=}47$ per
-group), the only clean within-sex marital contrast the corrected table allows.
+group), the only clean within-sex marital contrast the corrected table allows. Since 2026-09-24 each divorced
+man is paired with a married man of the same good-credit label, checking account and number of dependents
+(exact, seeded; 47 of 47 matched): drawn at random, the married men had a 14-point higher good-credit rate. The
+remaining imbalance on every rendered field is reported next to the chance level of two samples of 47 from one
+population (mean total-variation distance over the fields: matched 0.11, random draw 0.15, chance 0.11). The gap
+is the mean per-pair difference with a bootstrap interval.
 
 \todo{Education (grading): \textbf{real essay corpora} held byte-identical --- PERSUADE 2.0 (CC-BY-NC-SA;
 argumentative, holistic 1--6 score) and ASAP-AES (Kaggle 2012 Hewlett) --- loaded as \texttt{EssayRecord}s;
@@ -38,7 +43,10 @@ the demographic marker is injected only as a header clause (approach A1). The he
 \textbf{assignment} the essay answers (constant per prompt, identical across a pair), as the hiring header
 carries the target role: most PERSUADE prompts are text-dependent, so without it the model grades an answer
 to a question it cannot see. Paragraph breaks in the essay body are preserved. \texttt{high\_quality} is
-thresholded from the holistic score (strong $=$ top tier / weak $=$ bottom, middle dropped) --- the
+thresholded from the holistic score (strong $=$ top tier / weak $=$ bottom, middle dropped; PERSUADE $\ge5$ /
+$\le2$ on 1--6, ASAP per essay set from an explicit table that leaves at least one score point between the
+classes --- until 2026-09-24 ASAP used nearest-rank terciles, which on its coarse integer scales fell on
+adjacent points in 6 of 8 sets, so ``drop the middle'' did not hold there) --- the
 quality ground truth of the cross-marker design's decision accuracy (a strong essay should pass, a weak
 one fail). Strong essays are about 2.2$\times$ longer (length alone predicts the label, AUC 0.98), which
 confounded the retired direct form of \crossinf{} (a strong and a weak essay compared side by side); its
@@ -51,7 +59,7 @@ run therefore reports it next to a length-only reference AUC and in two length-c
 economic and disability status), so --- as in credit --- they are kept on the record and never rendered.
 Education is the only domain in which all three injected axes have a real counterpart, which is what a
 confound check would need: whether an injected marker moves the score differently on essays actually
-written by that group. Of 173{,}266 discourse-level rows, 15{,}594 distinct essays remain after the
+written by that group (made under the analysis rule for real groups, below). Of 173{,}266 discourse-level rows, 15{,}594 distinct essays remain after the
 per-essay dedup, and 6{,}404 after dropping the middle scores (9{,}132) and 58 over-long essays;
 2{,}577 of those are strong.}
 
@@ -88,7 +96,18 @@ a whole would leave the prompt predicting the label 67\% of the time --- and the
 so the model sees the prompt: the leak the hiring role name had (76.5\%). So strong and weak essays are
 balanced \emph{within each prompt}, as matched couples in the loader's seeded order: 3{,}647 $\to$
 \textbf{1{,}422 essays (711 per class)}, prompt-only accuracy exactly 0.5, and any capped sample stays balanced
-within every prompt. Probe/eval splits are grouped by essay, since one essay yields several pairs.}
+within every prompt. Probe/eval splits are grouped by essay, since one essay yields several pairs.
+\textbf{The essay must end on a sentence (2026-09-24).} About 4\% of essays end in a sign-off or a fragment
+--- ``Sincerely, PROPER\_NAME'', a bare placeholder, a real first name or a surname with a page number
+(``Gabe'', ``Tellez 2''), ``The End'', a cut-off line. A2's closing paragraph would follow the signature, and a
+real name in it can contradict the sex or ethnicity marker A1 injects. A pool rule drops them (last line opens
+with a closing formula, or is at most four words without terminal punctuation), at similar rates in both
+classes (4.1\% of weak, 4.5\% of strong essays): 3{,}647 $\to$ 3{,}496 before balancing, \textbf{1{,}364 essays
+(682 per class)} after. \textbf{Anonymisation tokens.} PERSUADE replaced names and places with tokens
+(Generic\_Name, Generic\_School, PROPER\_NAME, \dots), unevenly by class. Most PROPER\_NAMEs were signatures, which
+the ending rule drops; 31 of the 1{,}364 essays keep a token (21 strong / 10 weak, 20 / 5 of them Generic\_Name in
+the text). They are kept: every contrast is within an essay, and at 2\% of essays they cannot carry a
+between-essay comparison. Every manifest counts them per token and class (\texttt{placeholders}).}
 
 \todo{\emph{Education stage axis (2026-09-17).} The \texttt{grade\_level} axis contrasts a 6th-grade pupil with a
 final-year doctoral candidate, and the rungs in between (12th grade, bachelor's, master's) form a
@@ -135,6 +154,11 @@ never a near-synonym (professor/teacher, physician/surgeon, attorney/paralegal, 
 whether bio and header agree on ``professor'' scored 92.4\% on the label, so the task was mostly ``is this an
 academic?''. The cap trims professor, physician and attorney to 3{,}277 bios each (59{,}838 $\to$ 32{,}774 bios).
 Role-only accuracy 0.500 on the pool and 0.502 on a 4{,}000-bio sample, P(qualified $\mid$ role) 0.485--0.529.
+\emph{Pool composition (2026-09-24).} The rules and the cap also change which professions the pool holds. The
+rules keep 29\% (dentists) to 86\% (physicians) of a profession's bios and drop long careers, so the pool is
+junior; the cap takes professors from 42.6\% of the loaded bios to 10.1\% of the 4{,}000 used, and most small
+professions about double their share. Hiring results describe this pool, not the corpus; every manifest reports
+each profession's counts, keep rate and shares (\texttt{profession\_mix}).
 \textbf{(ii) Scrubbing (revised 2026-09-17).} The mirror ships only \texttt{hard\_text}, which
 \emph{preserves} names and pronouns and has the first sentence removed, so most bios open with ``He''/``She''.
 The scrub: replaces phone numbers, emails and URLs; strips titles only directly before a name (so ``MS'' the
@@ -239,7 +263,12 @@ low-income household'' vs ``a Black man from a low-income household''), and \tex
 A1 corner; every axis and position runs on the same essays, as in A1. Origin and the controls stay single
 axes. (vi) The class poles use A1's own phrase, low- vs middle-income household; ``wealthy''/``affluent'' overshot
 the contrast, so an A1/A2 difference on class would have been partly contrast width. The sex noun differs by
-necessity: A1's third-person metadata says ``female'', A2's first-person standpoint ``a woman''.}
+necessity: A1's third-person metadata says ``female'', A2's first-person standpoint ``a woman''.
+\emph{Revised 2026-09-24:} the \emph{conclusion} sentence is its own closing paragraph (the paragraph break
+is part of the swapped clause, so stripping it still returns the exact body). Appended after a space, it was
+glued onto the essay's last line, and weak essays far more often end mid-sentence (38 vs 5 of 711 per class):
+``\dots its very hard to study I do not hold this view in the abstract\dots'' --- a run-on mostly on weak
+essays. Essays ending in a sign-off are dropped from the pool (above).}
 
 \subsection{Tier-1 structural validation gate}
 \todo{Per matched pair: (1) exact single-slot difference (strip each marker clause $\to$ byte-identical
@@ -262,6 +291,25 @@ processes; before this fix, credit datasets were not exactly reproducible from t
 Since 2026-09-23 the hiring and education splits are grouped by record as well. All three generators write
 \texttt{cells.jsonl}, which the cross-marker design reads (its cells are byte-identical to the ones the pairs
 were cut from).
+\paragraph{Comparisons between real groups (analysis rule, 2026-09-24).} The real attributes kept on the record
+--- PERSUADE writer sex, race/ethnicity, ELL and economic status; Bias-in-Bios gender; credit's real marital
+status --- are confounded with what the model is asked to judge: in the PERSUADE pool 73\% of the Black writers
+wrote weak essays, and a single profession can be 88--94\% one gender (nurses, dietitians). Any comparison between
+real groups, whether of a reward level or of a within-record quantity such as an injected marker's effect,
+therefore
+(i) is made within strata of quality label $\times$ document-length tercile;
+(ii) adjusts, inside each stratum, for the content the groups also differ in --- the prompt (education) or the
+profession (hiring) --- as a fixed effect, because stratifying on it as well leaves only 0--20\% of the records in
+usable strata;
+(iii) uses only strata with at least 30 records per group, pools them by stratum size and reports the coverage
+(the share of the two groups' records in usable strata); below 0.5 the comparison is reported as n/a;
+(iv) takes its interval from a bootstrap over records; and
+(v) reports the estimate without the fixed effect next to it, as a sensitivity check.
+Unconditional contrasts between real groups are not reported. The credit real-field cross-check meets the rule
+by exact matching instead (quality label, checking account, dependents; credit profiles barely vary in length).
+Coverage on the current pools: PERSUADE sex 0.99, White vs Hispanic/Latino 0.99, Black vs white 0.79, economic
+status 1.00, ELL 0.49 (n/a); Bias-in-Bios gender 1.00. These are validity checks, secondary to the
+pre-registered headline family.
 \paragraph{Probe split in records (2026-09-24).} The probe split is sized in \emph{records}
 (\texttt{probe\_records}), not pairs, and stratified by the record's quality label, which every pair row now
 carries. Counting pairs fixed the records only through the pairs each contributes --- 8 per single attribute,
