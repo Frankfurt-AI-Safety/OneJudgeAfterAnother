@@ -1382,6 +1382,126 @@ the rule by exact matching (item 4.2). Nothing implements the rule yet --- no re
 code; the first one gets it as a shared function with tests. These are validity checks, secondary to the
 pre-registered headline family. \textbf{This closes audit items 4 and 5.}
 
+\subsection*{2026-09-24 --- every manifest regenerated after the audit fixes}
+All generators rerun with seed 42, so the audit's generator-side fixes are now in the data (quality label on
+every pair row, the ending rule, A2's conclusion paragraph, ASAP's per-set cut-offs, the pool reports):
+\begin{center}\small
+\begin{tabular}{lrrr}
+manifest & records & pairs & factorial blocks \\ \hline
+credit & 803 & 35{,}332 & 3{,}212 \\
+hiring (Bias-in-Bios) & 4{,}000 & 208{,}000 & 16{,}000 \\
+PERSUADE factorial & 1{,}364 & 70{,}928 & 5{,}456 \\
+ASAP factorial & 1{,}500 & 78{,}000 & 6{,}000 \\
+PERSUADE / ASAP stage (with ladder) & 500 blocks & 5{,}000 each & --- \\
+A2 positioned, PERSUADE (9 axes, conclusion) & 500 & 9{,}000 & --- \\
+\end{tabular}
+\end{center}
+No block failed the Tier-1 gate anywhere; every pair row carries \texttt{real\_fields}; no education essay ends
+in a sign-off; every A2 conclusion clause is its own paragraph; hiring cells carry \texttt{role}. Every config's
+probe split holds 150 records, stratified by quality (credit 105 strong / 45 weak, hiring and PERSUADE 75/75, the
+ASAP stage manifest 71/79), and each cross-marker design excludes exactly those 150. The ASAP stage manifest is
+46\% strong: the stage design keeps the first 500 of its shuffled (essay, template) blocks from the balanced pool,
+so its share is left to chance --- worth a look if the stage-by-quality interaction is read on ASAP. The configs'
+and runbooks' commands still named \texttt{experiments/} scripts (the directory no longer exists); fixed. The
+local embedding cache is cleared (it held only one model's head file). Staging is now $\approx$1.9 GB of generated
+data, so over a slow VPN it can be quicker to stage the raw corpora only and rerun the generators on the cluster
+(about a minute each, deterministic). \emph{Smoke} (plumbing only, no result): \texttt{run\_cross\_marker.py} on
+the regenerated credit, hiring and PERSUADE manifests (Qwen3-0.6B on MPS, 8 probe records, 4 strong $+$ 4 weak) runs
+end to end in every domain --- 1{,}440 decision and 256 direct-placement texts each, no length drops, the 8 probe
+records (stratified) excluded from evaluation.
+
+\subsection*{2026-09-24 --- data headroom per arm, against a reference for probing-set size}
+\emph{Question (for the discussion with Anne Lauscher, who pointed to \citet{beaglehole2025universal} for the dataset
+size effective probing needs):} after all plausibility rules, do the pools still hold enough balanced records for
+reliable directions, and for bootstrap intervals that can reach significance? Read-only analysis on the regenerated
+manifests; no code changed. Direction reliabilities are extrapolated from the 8-record smoke runs on \modelSmall{}
+(order of magnitude only). Every minimum detectable effect is in standardised units ($d_z$): the reward-unit size
+needs the pilot's per-record SDs.
+
+\paragraph{The reference.} Concept vectors (their Recursive Feature Machine, RFM, plus linear baselines) from ``fewer
+than 500 training samples''. The 512-concept set uses 200 prompts per class, and the two classes are
+\emph{different} statements (unpaired); last-token activations of every block; 20\% held out for hyperparameters;
+RFM beats linear and logistic probes on average. There is no sample-size ablation, so the paper sets an order of
+magnitude, not a rule. For us: our directions are difference-of-means on \emph{matched} pairs, where content
+cancels within each pair, so they should need fewer samples than the paper's unpaired classes, not more. The paper
+does not answer our two questions --- how precisely a direction is estimated, and whether an effect reaches
+significance. The pilot's probe-size curve answers the first; its 8B model matters because the extrapolations
+below come from a 1{,}024-dimensional model.
+
+\paragraph{Directions.} Split-half $=$ the cosine between directions fitted on two halves of the records.
+\begin{center}\small
+\begin{tabular}{@{}p{4.1cm}p{3.5cm}p{2.3cm}p{4.9cm}@{}}
+direction & data & vs.\ reference & split-half (extrapolated) \\ \hline
+direct, single attribute (battery, RQ5 transfer, nulling) & 150 records, 1{,}200 matched pairs & above &
+  $\ge$0.98 explicit; proxy 0.94--0.99 (weakest: education proxy ethnicity) \\
+direct, intersection & 150 records, 300 pairs & above (matched) & 0.96--0.99 \\
+A2 single axes (origin, controls) & 150 records, 150 pairs & about equal & not measured \\
+cross-marker prompt / unfair & eval records, cross-fitted & above & $\ge$0.94 / $\approx$1.0 \\
+\textbf{cross-marker interaction} & same & above & several proxy ones 0.6--0.85 even at $\approx$480 records;
+  hiring proxy family status: no signal \\
+\textbf{real-field credit} & 47 vs 47 different applicants & 4$\times$ below, unpaired & not computed \\
+\end{tabular}
+\end{center}
+Main-effect directions have headroom at 150 records. The weak points are the interaction directions (their signal
+is small) and the real-field direction, whose cosines with the synthetic directions are attenuated by its own
+unreliability. LEACE $+$ MLP on the demographic directions (not run yet): 2{,}400 training states per attribute,
+tested on held-out records; with $\approx$200 of them, ``at chance'' resolves to about $\pm$0.07 accuracy.
+
+\paragraph{Evaluation.} MDE $=$ the smallest $d_z$ with 80\% power at $\alpha=.05$; $m=4$ / $m=12$ apply a Holm
+correction over 4 / 12 tests. ``Available'' is what the data allows after all rules (credit / hiring / education).
+\begin{center}\small
+\begin{tabular}{@{}p{3.4cm}p{2.9cm}p{3.6cm}p{3.3cm}p{1.4cm}@{}}
+arm & $n$ used & available & MDE, $\alpha=.05$ / $m=4$ / $m=12$ & CIs \\ \hline
+cross-marker, strong (headline disparity) & 300 per domain & 459 / 1{,}929 / 607 & 0.16 / 0.19 / 0.21 & yes \\
+cross-marker, weak (cross-influence) & 300; \textbf{credit capped at 194} & 194 / 1{,}921 / 607 &
+  credit 0.20 / 0.24 / 0.27 & yes \\
+direct battery (mechanism layer) & 200 pairs $=$ 200 records & 653 / 3{,}850 / 1{,}214 & 0.20 / 0.24 / 0.26 &
+  \textbf{no} \\
+blatant decision arm (floor) & 200 strong items & ample & 0.20 / 0.24 / 0.26 & \textbf{no} \\
+A2 standpoint & runner default 200 essays & pool 1{,}364, manifest 500 & 0.20 (0.13 at 500) & \textbf{no} \\
+real-field credit & 47 matched pairs & 47 (all used) & 0.41 / 0.49 / 0.54 & yes \\
+real-group checks & $\ge$30 per group per stratum & coverage 0.79--1.00 (ELL n/a) & per stratum & rule only \\
+stage ladder & 500 blocks per manifest & --- & 0.13 & no \\
+\end{tabular}
+\end{center}
+Limits the table does not show: (i) \emph{interactions need more records} --- under our $2^3$ coding a two-way term
+carries twice, the three-way term four times the noise of a main effect in reward units, so equal reward resolution
+takes about 4$\times$ the records for the two-way terms; the additivity gap (three-way$/4$) keeps main-effect
+precision. (ii) The AUC form of \crossinf{} resolves roughly 0.03--0.04 AUC at 300/194 records, and means something
+only if the model separates strong from weak at all (credit smoke on \modelSmall{}: AUC of $D$ 0.42) --- more records
+cannot supply a missing quality signal. (iii) \emph{Education's within-length-strata AUC barely has data:} length alone
+predicts the class at AUC 0.98, and only 5\% of strong$\times$weak pairs share a length quintile (the maximum is 20\%;
+credit 17\%, hiring 20\%); that overlap consists of atypical essays (long weak, short strong), so read the
+length-residualised form for education. In hiring length says nothing about the class (AUC 0.50), which makes it the
+cleanest domain. (iv) The length guard costs no records: the longest education conversation is 1{,}516 of 2{,}048
+tokens, with $\approx$500 tokens of slack for other tokenizers. (v) At $n\approx47$ the percentile bootstrap slightly
+under-covers.
+
+\paragraph{Balance after all rules.} Factorial cells: balanced by construction in every domain. Quality label: hiring
+exactly 50/50; PERSUADE 50/50 within prompt; ASAP 50/50 within essay set (the stage manifest 46\%); credit 70/30 by
+corpus. Probe splits stratified in every config (credit 105/45, hiring and education 75/75). Real demographics are
+confounded with quality: the analysis rule for real groups handles it, and ELL comes out n/a.
+
+\paragraph{Where the headroom runs out.}
+\begin{enumerate}
+  \item \textbf{Missing intervals matter more than $n$.} The direct battery, the blatant decision arm and A2 report
+        point estimates only, so none of their numbers can support a significance claim yet. The record-level
+        bootstrap helper exists (\texttt{scoring/cross\_marker\_metrics.summarize}); wiring it in is a later code change.
+  \item \textbf{Credit weak records are binding} (194 instead of 300). Every weak record added to the probe comes out
+        of this pool: \texttt{probe\_records: 300} would leave $\approx$149. The extrapolated reliability at 150 is
+        already $\approx$0.98, so the pilot's probe-size curve should decide whether credit could even use fewer.
+  \item \textbf{Interactions are expensive:} both the interaction directions and the two-way terms of the $2^3$
+        decomposition need more records than the main effects --- a reason to keep the additivity gap, with
+        main-effect precision, as the headline intersectional quantity.
+  \item \textbf{Real-field credit stays a cross-check:} all 47 pairs are used (MDE 0.41), and its direction is unpaired
+        and below the reference's per-class scale.
+  \item \textbf{Cheap gains are unused} (only runner defaults cap them, not the data): A2 from 200 to 500 essays
+        (MDE 0.20 $\to$ 0.13), and the direct evaluation cap of 200 could rise at least 3$\times$ in every domain.
+\end{enumerate}
+Two consistency issues found while reading the runners (later fixes): the blatant decision arm does not exclude
+probe records from its items, and its hiring items come from the whole 32{,}774-bio pool, with a role assignment that
+differs from the manifest's.
+
 \todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
 \texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}
 
