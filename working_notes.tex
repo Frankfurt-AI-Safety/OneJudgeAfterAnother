@@ -1502,6 +1502,45 @@ Two consistency issues found while reading the runners (later fixes): the blatan
 probe records from its items, and its hiring items come from the whole 32{,}774-bio pool, with a role assignment that
 differs from the manifest's.
 
+\subsection*{2026-09-25 --- throughput on the cluster, and the pilot's decision rules, stated before the pilot}
+\paragraph{Throughput (two trial runs, A100-80GB; details in the code repo's \texttt{cluster/README.md}).} A
+cross-marker run puts 202 texts per record through the model, plus 4{,}800 for the direct directions. Extrapolated to
+the planned size (300 $+$ 300 records; credit 459 $+$ 194): about 0.5\,h credit, 0.7\,h hiring and 1\,h education
+on \modelSmall{}, and about 1\,h, 1.1\,h and 2.2\,h on Skywork-Reward-V2-Llama-3.1-8B, whose forward pass is about
+4$\times$ slower and which passes the score-path check. The mechanism layer runs on the CPU and grows with the number
+of records; it is the largest phase for credit and hiring. Batch 32 instead of 8 gains too little to change. The
+workspace may hold at most 2 GPUs at once, so a 70B model (2 GPUs) runs alone. Trial outputs are throughput checks,
+not results.
+
+\paragraph{The pilot.} \modelSmall{} and Skywork-Reward-V2-Llama-3.1-8B, one GPU each. Per model: the probe-size
+curve for credit, hiring and PERSUADE, then the cross-marker design on the full credit and education pools and on
+600 $+$ 600 hiring records (tools: \texttt{runners/run\_probe\_curve.py}, \texttt{runners/pilot\_sizing.py},
+\texttt{cluster/pilot.sh}). Outputs go to \texttt{artifacts/results/demographic/pilot/}; they fix $n$ and
+\texttt{probe\_records} and are not headline results.
+
+\paragraph{Rule for \texttt{probe\_records} (fixed before the pilot).} For every direct direction used for nulling
+(each axis and the intersection, explicit and proxy), fit it on the first $N$ probe records for
+$N \in \{25, 50, 75, 100, 150, 200, 300\}$. The probe sets are nested in $N$ (stratified by quality), and every $N$
+is evaluated on one fixed eval set: the records outside the largest probe set (up to 2{,}000 pairs, about one per
+record). A point passes when (a) its split-half cosine is at least 0.90 --- conservative, since it is the
+reliability of halves of $N/2$ records --- and (b) its nulled $|$gap$|$ on the eval set, averaged per record, lies
+inside the 95\% record-bootstrap interval of the value at $N=300$. A direction's answer is the smallest $N$ from
+which every larger point passes too (one lucky point at small $N$ does not decide). A domain's
+\texttt{probe\_records} is the largest answer over its directions, encodings and both models. A direction that
+fails even at 300 is reported, and the domain keeps 300.
+
+\paragraph{Rule for $n$, records per group (fixed before the pilot).} For each headline contrast of the decision
+margin $D$ --- every axis's disparity, the intersection, the additivity gap --- and separately the two-way
+interactions, the pilot gives the per-record SD in scaled units, $r = \mathrm{sd}/\mathrm{scale\_sd}$
+(\texttt{scale\_sd} = the SD across records of $D$ on the unmarked control). The records needed to detect a scaled
+effect $\delta$ with 80\% power at two-sided $\alpha/m$ are
+$n = \lceil ((z_{1-\alpha/(2m)} + z_{0.80})\, r/\delta)^2 \rceil$, for the largest $r$ among the contrasts, capped
+by the records available (credit weak: 194). $\delta$ (the smallest scaled effect of interest) and $m$ (the Holm
+family size) are fixed together with the headline family, which is still open; the sizing tool therefore reports
+$\delta \in \{0.05, 0.10, 0.20\}$ $\times$ $m \in \{1, 4, 12\}$. The rule reads only SDs, never an effect's mean
+or interval (the tool is blinded to them and a test pins that), so $n$ cannot follow the pilot's effects. Because
+the record selection is seeded, the main runs' records are a prefix of the pilot's.
+
 \todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
 \texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}
 
