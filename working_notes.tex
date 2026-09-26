@@ -1732,6 +1732,76 @@ probe on the comparative states would separate the two --- informative either wa
 \paragraph{Open decisions.} Confirmatory (e.g.\ as the RQ5 transfer test) or exploratory --- to be settled with the
 headline family; the exact response set; whether education is in scope; pair counts, from the re-run pilot.
 
+\subsection*{2026-09-26 --- CPU cost of the cross-marker runs: profiled and removed}
+In the pilot the CPU-side phases took 31--69\% of every run, the mechanism layer most of it, and on the 8B the
+mechanism layer grew with the hidden size. A \texttt{cProfile} run on the cluster (credit, \modelSmall{},
+explicit, every state from the embedding cache) found the cause: \textbf{thread oversubscription}. Torch used every
+core of the node for each of $\approx$15{,}000 tiny per-record sums in the direction fitting, and paid the
+thread-pool overhead each time: mechanism layer 1{,}289\,s, whole run 1{,}513\,s. With
+\texttt{OMP\_NUM\_THREADS} capped (2, 8 and 16 all give 257--258\,s; the cap matters, not its value) the same run
+took 258\,s. \texttt{cluster/config.yaml} now sets 8 for every task. GPU transfers were not the cause (4\,s).
+
+The remaining CPU work was then rewritten without changing any number, before the code review, so the review sees
+the final code:
+\begin{itemize}
+  \item \textbf{Metrics} (\texttt{scoring/cross\_marker\_metrics.py}): the reward table is an array
+        [record $\times$ template $\times$ cell $\times$ response] built from an index computed once per encoding
+        (\texttt{RewardIndex}), instead of a dict pass per reward column; the $2^3$ decomposition runs on all
+        records at once; the bootstrap draws and the resampled scale SD are computed once per record set; the
+        bootstrap AUCs (cross-influence, quality tracking, within length strata) count pairs weighted by each
+        replicate's multiplicities instead of ranking every replicate --- exactly the same Mann--Whitney counts.
+  \item \textbf{$\alpha$-sweep}: it recomputed the full metrics 60 times to keep one disparity and one AUC per point;
+        it now computes those two (\texttt{sweep\_point}).
+  \item \textbf{Prepare}: every conversation was rendered twice (length guard, then rows) and tokenized one call
+        per text; now rendered once and counted in one call per record (credit: 35\,s $\to$ 11\,s).
+  \item \textbf{Direction fitting}: the per-record contrast sums run as a few large indexed sums, independent of
+        the thread setting.
+\end{itemize}
+Local profile, credit with 479 records per encoding: mechanism layer 29\,s $\to$ 4.8\,s, metrics 29\,s $\to$ 3.6\,s,
+placement check 4.7\,s $\to$ 0.9\,s. \textbf{Check:} a regression test pins every number the metrics, the placement
+check and the mechanism layer produce on fixed synthetic data (three designs, both encodings, ties, a record with a
+missing template); after the rewrite all 11{,}950 metric values and 19{,}416 mechanism values are bit-identical to
+the code before it.
+
+\emph{Found on the way:} Python's built-in \texttt{sum} over floats has been compensated (Neumaier) since 3.12, plain
+left-to-right before. The reference \texttt{factorial\_effects} therefore rounded differently on the cluster
+(Python 3.10) than on the Mac (3.14), and an effect that is exactly zero in exact arithmetic came out as
+$\pm 10^{-17}$ with a machine-dependent sign --- which \texttt{share\_negative} counts. The vectorised version
+always uses the compensated sum, so it is machine-independent. It changes nothing but \texttt{share\_negative} in
+such tie cases, and only relative to earlier cluster runs.
+
+\subsection*{2026-09-26 --- the model ladder on the cluster's torch: three checkpoints could not load}
+Preparing a 70B pilot turned up a blocker for part of the eleven-RM table. transformers $\ge$ 4.50 refuses PyTorch
+\texttt{.bin} weights under torch $<$ 2.6 (CVE-2025-32434), and the cluster image has torch 2.3. Three checkpoints
+publish only \texttt{.bin}: \textbf{both AllenAI RB2 models} (8B, 70B --- the clean same-recipe size pair) and the
+DeBERTa RM. For RB2, Hugging Face's own conversion bot has open pull requests with the same tensors as safetensors;
+the pipeline now loads those pinned revisions (\texttt{scoring/backend.py}, recorded in every cross-marker result
+as \texttt{model\_revision}; RB2-70B at PR~2, commit \texttt{9c7bbb8}). A torch upgrade in the image would be the
+alternative. Also checked on the Hub: the three Nemotron ids, never verified before, exist; the two 32B ones are
+ordinary sequence classifiers (stored in fp32, 128\,GB to download); \textbf{Llama-3.3-Nemotron-70B-Reward is packaged as a causal
+LM} but is a Bradley--Terry scalar RM: its model card reads the reward as the raw logit of vocabulary token 0 after the
+conversation, i.e.\ row 0 of the output matrix applied to the last-token state --- linear, no bias, exactly the form the
+pipeline projects before. It needs a small head adapter (that row as the score head), not a different method, so it
+can stay in the table. (Not a generative judge that writes its verdict, which would not fit a linear projection.) A 70B pilot (RB2, both GPUs, small $n$, about 3\,h) is prepared for speed and a
+first look at quality (\texttt{cluster/pilot.sh 70b}); it also checks for silent CPU offloading, which the loader
+now reports.
+
+\subsection*{2026-09-26 --- Nemotron-70B adapter; tokenizing as each model's authors do}
+\textbf{Adapter.} Nemotron-70B-Reward is loaded as a causal LM and wrapped (\texttt{scoring/logit\_reward.py}): the
+score head is row 0 of the output matrix (no bias), the pooled state the usual last-token state, so the projection
+site and every arm are unchanged. The load-time check compares the pipeline's reward with the model's own logit, and a
+test on a tiny model reproduces the model card's \texttt{generate(...).scores[0][0][0]} read-out. Any causal-LM
+checkpoint not listed with its token is refused: as a sequence classifier it would get a randomly initialised score
+head that nothing downstream would notice.
+
+\textbf{Tokenization.} Building it showed that the pipeline's convention --- format with the chat template, then
+tokenize with the tokenizer's defaults, which add a BOS --- differs from the template's own token ids for four
+ladder models: Nemotron-70B, both RB2 models and Skywork-Gemma-2-27B (their templates contain no BOS). What matters
+is how each model's authors score it: the Skywork cards and RewardBench (the RB2 authors' benchmark) tokenize with
+the defaults, so those keep the BOS; Nemotron's card tokenizes the template's ids directly, so it alone is scored
+without one (\texttt{TEMPLATE\_TOKENIZED}). The other six models agree with their templates either way. The loader
+logs the relation for every model. None of the four had been run, so no result changes.
+
 \todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
 \texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}
 
