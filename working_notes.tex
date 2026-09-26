@@ -1609,7 +1609,128 @@ With 450--600 records per group nearly every interval excludes zero, so the read
         responses, which the direction was not fitted on.
   \item The opposite signs between the two models (education, credit): check the pole orientation end to end
         (cells $\to$ rows $\to$ table $\to$ contrast) before any reading of them.
+  \item (Added the same day, from a smoke run.) The blatant decision arm's headline confounds the verdict's
+        \emph{polarity} with its reason: \texttt{discriminatory} is the only \emph{decline} verdict, while
+        \texttt{fair} and \texttt{neutral} both approve, so ``discriminatory beats fair'' also measures a general
+        preference for declining. In a 30-item MPS smoke run \modelSmall{} preferred the discriminatory verdict on
+        every item and every credit axis. A fair \emph{decline} (declining on the merits, attribute irrelevant)
+        would separate the two; the cross-marker design's neutral-vs-overt decline contrast already does.
 \end{enumerate}
+
+\subsection*{2026-09-26 --- intervals for every arm}
+The direct battery, the blatant decision arm, A2 and the additivity cosines reported point estimates only
+(``Where the headroom runs out'', item 1). They now carry 95\% percentile intervals from a cluster bootstrap
+(\texttt{scoring/intervals.py}): whole clusters are resampled, so correlated items are not counted as
+independent --- a record's matched pairs (direct arm), an item (decision arm: one item per record), an essay's
+positioned pairs (A2), a probe record's pair contrasts (additivity: the directions are refitted on every
+resample). The point estimates are unchanged. The direct arm and the decision arm also report what nulling
+changed on the same items (nulled $-$ baseline, with its interval) --- the paired comparison RQ4 needs, which two
+separate intervals cannot give. Intervals are uncorrected until the headline family fixes the multiplicity
+correction. The reasoning arm is left out until it is ported to the real substrate. The paper-number exporter
+does not emit the intervals yet.
+
+\subsection*{2026-09-26 --- the QRM adapter}
+The log of 2026-09-24 left QRM-Gemma-2-27B blocked (``a small adapter for its gated head''). Done, tested on a
+tiny random QRM; the real checkpoint is first loaded on the cluster.
+\begin{itemize}
+  \item \textbf{The remote code does not import.} The checkpoint's \texttt{modeling\_custom.py} imports
+        \texttt{LLAMA\_INPUTS\_DOCSTRING}, which transformers no longer has (neither the cluster's 4.57.6 nor 5.17);
+        it was dead code there, but the import fails first. We therefore carry our own implementation of the
+        architecture (\texttt{scoring/qrm.py}), with the checkpoint's parameter names (checked against its weight
+        index), loaded by the backend when a checkpoint declares \texttt{Gemma2ForQuantileSequenceClassification}. No
+        remote code runs.
+  \item \textbf{The score, as read from the reference code.} Five HelpSteer2 objectives $\times$ 19 quantiles, all
+        linear in the last-token state $h$; a gate (MLP $+$ softmax, times a learned scale) over the objectives, read
+        from the state at the end of the \emph{user} turn; score $=\sum_k g_k \cdot \mathrm{mean}_q (Rh)_{k,q}$. The gate
+        depends on the prompt only (causal attention), so it is identical for all responses to one prompt --- which
+        confirms the 2026-09-24 argument that it cancels in the decision arm's same-prompt comparisons.
+  \item \textbf{Projection site.} Unchanged: $h$ is projected, the gate is computed on the unprojected pass and held
+        fixed; for a fixed gate the score is linear in $h$ with the text's effective head $g\,\bar R$. A per-text
+        gate is new to the pipeline: it is computed in the same forward pass, cached beside the states (a
+        \texttt{gates/} sub-cache) and passed wherever rewards are computed from states. Linear-head models are
+        untouched, down to their cache fingerprint (the pilot's cached states stay valid).
+  \item \textbf{The gate pathway, measured.} In the cross-marker design the marker is in the prompt, so the gate
+        sees it: a disparity can run through the gate, which no last-token projection removes. For a gated model
+        the runner adds a \texttt{gate\_fixed} column --- every row rescored with the gate of its record's unmarked
+        prompt --- whose disparities run through $h$ alone; baseline $-$ \texttt{gate\_fixed} is the gate's part. This
+        is the RQ3 question ``where does the demographic information live'' for QRM. The geometry uses the mean
+        effective head, so its \texttt{did\_from\_states} is approximate for QRM.
+  \item \textbf{Checked at load.} \texttt{verify\_score\_path} now scores chat-formatted conversations (as every
+        pipeline text is; QRM needs the user/assistant boundary) and, for a gated head, also compares the
+        pipeline's gates with the model's.
+  \item \textbf{QRM's backbone is bit-identical to Skywork-Reward-Gemma-2-27B-v0.2} (checked 2026-09-26 on the
+        Hub: QRM revision \texttt{83d5ac5}, Skywork v0.2 revision \texttt{a92f2ec}). The QRM paper says the backbone
+        stays frozen in both training stages, and the model card names v0.2 as its backbone; the files confirm it.
+        11 of 12 weight shards have the same SHA-256; the twelfth holds each model's head and 7 backbone tensors
+        (layer 45's MLP projections and norms, the final norm), whose bytes are identical too --- all 508 backbone
+        tensors. Tokenizer files, chat template and backbone config are identical as well (the configs differ only
+        in name, architecture, auto-map and transformers version). So both models produce the same last-token
+        state for every text, and their difference-of-means directions are the same: the pair differs \emph{only}
+        in the head (one linear score head vs.\ the gated quantile heads), a clean scalar-vs-distributional
+        contrast for RQ6. Open: our model list still names the unversioned \texttt{Skywork-Reward-Gemma-2-27B}
+        (v0.1, a different backbone); pinning it to v0.2 would make the pair usable. The shared states could also
+        be embedded once for both models (their caches are separate, since the fingerprints name the model and
+        head).
+\end{itemize}
+
+\subsection*{2026-09-26 --- design: a comparative (two-applicant) arm}
+\emph{Design only; to be implemented after the review of \texttt{pairs/} and \texttt{scoring/}, whose factorial
+cells, rendering and metrics it reuses.}
+
+\paragraph{Idea.} The user turn presents \emph{two} applications (or bios, or essays) and asks which one should get
+the loan / the interview / the award; the response chooses one. The protected attribute enters as a contrast
+\emph{between} the two applicants, in the prompt, as it would when a policy model shortlists or ranks. Pairings:
+strong vs strong and weak vs weak (does the marker break a tie of merit?), strong vs weak (a correct answer exists:
+can the marker overturn a merit-based choice?). More realistic than any current arm --- real decisions compare
+different people, never byte-identical twins --- and it adds a third placement of the marker for RQ5.
+
+\paragraph{Control: a counterbalanced within-pair contrast.} Different records do not mean an uncontrolled comparison.
+Each record pair $(X, Y)$ is shown under both marker assignments (X protected and Y reference, and swapped) and in
+both orders (X first, Y first): 4 prompts per pair. With $M = r(\text{choose }X) - r(\text{choose }Y)$, the marker
+effect is $M\,|\,X\text{ protected} \;-\; M\,|\,Y\text{ protected}$, averaged over the two orders. Everything about the
+two records --- quality, length, content --- appears on both sides and cancels exactly; the order swap removes position
+bias, which reward models and LLM judges are known to have. So the arm keeps a within-pair difference-in-differences,
+not only an average over unmatched records.
+
+\paragraph{Design choices (proposed).}
+\begin{itemize}
+  \item \emph{Cells}: the two applicants differ in one axis at a time (the others held equal, at each of their
+        settings), plus the intersection corner --- the full crossing would be $8\times 8$ cells per pair.
+  \item \emph{Responses}: attribute-free, symmetric and length-matched (``Applicant A is the stronger candidate
+        \dots''), naming the applicant by position label only; possibly a ``neither'' and an evasive response as in
+        the cross-marker set.
+  \item \emph{Units}: every record in at most one pair, so the record pair is the bootstrap unit
+        (\texttt{scoring/intervals.py} applies unchanged); pairs drawn within quality strata (and, for strong vs
+        weak, across them), optionally matched on document length to cut noise.
+  \item \emph{Scope}: hiring (shortlisting is the most natural comparative decision) and credit. Education does
+        not fit as is: two essays of up to $\approx$1{,}500 tokens exceed \texttt{max\_length} 2{,}048, and grading is
+        absolute rather than comparative; only with a comparative framing (a scholarship) and a larger
+        \texttt{max\_length} on models that allow it.
+  \item \emph{Cost}: 4 prompts per pair $\times$ a few responses, with prompts about twice as long --- per record
+        cheaper than the cross-marker design's 45 texts.
+\end{itemize}
+
+\paragraph{What it would measure.}
+\begin{itemize}
+  \item The marker effect on the choice margin, per pairing type; tie-breaking (strong--strong, weak--weak) is where
+        discrimination is most plausible in practice.
+  \item For strong vs weak: how often the marker overturns the merit-correct choice, and an \emph{exchange rate} ---
+        the marker effect relative to the quality effect on the same margin (how much merit a marker is worth).
+  \item \textbf{Leak-back (RQ5): a transfer matrix.} Three placements of the marker --- in the response (direct
+        scoring), in a single application in the prompt (cross-marker), in one of two applications (comparative).
+        Fit a direction in each, null it in each other: a $3\times3$ matrix of how much of each disparity the other
+        situations' directions remove. That answers ``in which situations does the bias leak back'' for debiasing
+        the score but not the model; the comparison ``direct-scoring directions vs decision directions'' is its
+        first row and column.
+\end{itemize}
+
+\paragraph{Caveat, and a question of its own (RQ3).} In the comparative prompt the reward model must bind the attribute
+to the right applicant (``the chosen one is the woman''). A single linear direction may not capture that binding, so a
+projection can fail there for a structural reason rather than because the bias is ``deeper''. LEACE plus a non-linear
+probe on the comparative states would separate the two --- informative either way.
+
+\paragraph{Open decisions.} Confirmatory (e.g.\ as the RQ5 transfer test) or exploratory --- to be settled with the
+headline family; the exact response set; whether education is in scope; pair counts, from the re-run pilot.
 
 \todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
 \texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}
