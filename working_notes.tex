@@ -184,6 +184,13 @@ against the current releases.}
 
 \section{Open questions / things we are chasing}
 \begin{itemize}
+  \item \textbf{Pilot-then-freeze decisions postponed until the code review is done (decided 2026-09-26).} The pilot
+        ran on 2026-09-25/26 (log entry of that date), but \texttt{probe\_records}, $n$ per group and the headline
+        family ($m$, $\delta$) are \emph{not} fixed from it: only \texttt{substrates/} has been reviewed line by
+        line, and a bug in \texttt{pairs/}, \texttt{probes/}, \texttt{scoring/} or \texttt{runners/} would feed
+        straight into the numbers these decisions rest on. Order: finish the review, re-run the pilot on the
+        reviewed code (\texttt{cluster/pilot.sh}, same pre-stated rules), then decide. The configs keep their
+        \texttt{TODO(pilot)} placeholders until then.
   \item \todo{Does the reasoning-correctness effect survive on a larger / instruct RM, and does the RM
         track quality in decision format (AUC of $D$ between strong and weak records, against the
         common-sense reference for credit and a length-only reference for essays)?}
@@ -1540,6 +1547,69 @@ family size) are fixed together with the headline family, which is still open; t
 $\delta \in \{0.05, 0.10, 0.20\}$ $\times$ $m \in \{1, 4, 12\}$. The rule reads only SDs, never an effect's mean
 or interval (the tool is blinded to them and a test pins that), so $n$ cannot follow the pilot's effects. Because
 the record selection is seeded, the main runs' records are a prefix of the pilot's.
+
+\subsection*{2026-09-26 --- the pilot ran; decisions postponed until the code review; a first look}
+\emph{Provisional throughout: produced by code that has not been reviewed line by line (only \texttt{substrates/}
+has). Nothing here is a result.}
+
+\paragraph{Run.} Both lanes finished without a failed step (0.6B about 4\,h, 8B about 11\,h; 8B education alone
+6\,h). On the 8B the CPU-side mechanism layer also grows with the hidden size (education: 2.2\,h vs 0.5\,h on the
+0.6B) --- the part to speed up before the 27B--70B models.
+
+\paragraph{Decision postponed (see Open questions).} The pilot came before the review of \texttt{pairs/},
+\texttt{probes/}, \texttt{scoring/} and \texttt{runners/}, so the decisions it was meant to inform wait for the
+review and a re-run on reviewed code. What the pre-stated rules would give today, for the record:
+\begin{itemize}
+  \item \texttt{probe\_records}: credit 200, education 300, hiring 300. Stability is never the binding criterion
+        (split-half $\ge 0.90$ by $N{=}100$ at the latest, usually by 25--50); criterion (b), the nulled gap
+        inside the $N{=}300$ interval, is --- with 500--2{,}000 eval records that interval is only $\pm$3--5\%.
+        On the 8B, hiring's nulled gap still moves 5--15\% between $N{=}150/200$ and 300 and changes sign, and
+        since $N{=}300$ is the reference it always passes: for hiring, 300 means ``at least 300''.
+  \item $n$ (explicit, strong, the three axes $+$ intersection; maximum over both models): 127--157 records per
+        group at $\delta=0.10$ ($m=4$/12), 508--626 at $\delta=0.05$; education at $\delta=0.05$, $m=12$ does not
+        fit its pool. The SDs come from two models only.
+\end{itemize}
+The blinding of the $n$ rule is kept in the tool, but the effects below have now been looked at.
+
+\paragraph{First look (scaled disparity of $D$ on strong records, explicit encoding; pole A = female, 30,
+married / on parental leave / Black, low-income; negative $\Rightarrow$ declining pole A is favoured).}
+With 450--600 records per group nearly every interval excludes zero, so the reading is about size and sign.
+\begin{itemize}
+  \item \textbf{The two models disagree in sign on education.} \modelSmall{}: ethnicity $-0.23$, economic status
+        $-0.45$, intersection $-0.64$ (the largest effects of the pilot, against pole A). Llama-3.1-8B: $+0.15$,
+        $+0.09$, $+0.24$ (in favour of pole A, strongest on weak records: intersection $+0.35$). The proxy encoding
+        repeats each model's sign at a third to a half of the size.
+  \item \textbf{Credit}: the 8B favours pole A on every axis (sex $+0.06$, age $+0.06$, intersection $+0.13$, the
+        same in proxy); the 0.6B shows small effects (marital status $+0.07$, sex $-0.01$).
+  \item \textbf{Hiring}: parental leave is penalised --- strongly by the 0.6B ($-0.21$), less by the 8B ($-0.07$
+        strong, $+0.02$ weak); the proxy for it (a school parent association) moves almost nothing. The 8B's proxy
+        age effect ($-0.13$) is larger than its explicit one ($-0.03$).
+  \item \textbf{Quality tracking.} The 0.6B barely separates credit outcomes (AUC of $D$ 0.57, common-sense
+        reference 0.68); on essays its AUC 0.73 is mostly length (length-only 0.98, length-residualised 0.55).
+        The 8B: hiring 0.86 with no length confound, education 0.91 but 0.64 length-residualised.
+  \item \textbf{Mechanism layer.} Projecting out the cross-fitted interaction direction removes nearly every
+        disparity --- close to circular, since that direction is fitted on the very contrast (on other folds);
+        it shows one direction carries the effect, not an independent mechanism. On the 8B the \emph{unfair}
+        direction (overt vs neutral decline) removes 85--95\% of the credit disparity. The direct directions
+        (marker in the response) remove little, except hiring and education on the 8B (RQ5 transfer).
+  \item \textbf{Placement.} The direct gap (marker in the response) often differs in sign from the decision
+        disparity (0.6B credit age: $-0.32$ vs $+0.00$), consistent with the decision to read direct scoring
+        as mechanism, not harm.
+\end{itemize}
+
+\paragraph{For the code review (\texttt{scoring/}, \texttt{probes/}), from this first look.}
+\begin{enumerate}
+  \item The additivity gap is $\approx 0$ everywhere ($|\cdot| \le 0.007$). By construction it is
+        corner $-$ $\sum$ mains $= 2\beta_{123}$ (a quarter of the three-way term): pairwise interactions cancel
+        out of the corner contrast. ``Additive'' may therefore only mean ``no three-way term''; the pairwise
+        interactions must be read separately, and the notes' wording of the additivity test checked.
+  \item The interaction direction's near-complete nulling: check that cross-fitting really keeps each record's
+        own contrast out of its direction.
+  \item The unfair direction's large effect on the 8B (credit): check what the projection does to the approve
+        responses, which the direction was not fitted on.
+  \item The opposite signs between the two models (education, credit): check the pole orientation end to end
+        (cells $\to$ rows $\to$ table $\to$ contrast) before any reading of them.
+\end{enumerate}
 
 \todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
 \texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}
