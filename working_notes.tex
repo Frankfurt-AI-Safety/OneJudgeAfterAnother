@@ -186,11 +186,24 @@ against the current releases.}
 \begin{itemize}
   \item \textbf{Pilot-then-freeze decisions postponed until the code review is done (decided 2026-09-26).} The pilot
         ran on 2026-09-25/26 (log entry of that date), but \texttt{probe\_records}, $n$ per group and the headline
-        family ($m$, $\delta$) are \emph{not} fixed from it: only \texttt{substrates/} has been reviewed line by
-        line, and a bug in \texttt{pairs/}, \texttt{probes/}, \texttt{scoring/} or \texttt{runners/} would feed
+        family ($m$, $\delta$) are \emph{not} fixed from it: only \texttt{substrates/} and (since 2026-09-27)
+        \texttt{pairs/} have been reviewed line by line, and a bug in \texttt{probes/}, \texttt{scoring/} or
+        \texttt{runners/} would feed
         straight into the numbers these decisions rest on. Order: finish the review, re-run the pilot on the
         reviewed code (\texttt{cluster/pilot.sh}, same pre-stated rules), then decide. The configs keep their
         \texttt{TODO(pilot)} placeholders until then.
+        \textbf{Amendments for the re-run (decided 2026-09-26, before it):} (1) the 70B model
+        (Llama-3.1-70B RB2) joins the pilot as a third model, run with enough records for both rules to apply to
+        it: the probe-size curve up to $N=500$ probe records (all three domains have the records: credit 803,
+        hiring 4{,}000, education 1{,}364; the nested grid below 500 costs almost nothing, since only the largest
+        probe set and the eval set go through the model), and the cross-marker design on 100 $+$ 100 records
+        (credit, hiring) and 50 $+$ 50 (education) --- enough for the $n$ rule, which reads only per-record SDs
+        (relative precision $\approx\pm$7\% at 100, $\pm$10\% at 50). Both rules then take their maximum over three
+        models. Estimated cost: $\approx$13\,h of both GPUs. \emph{To confirm before the re-run:} (2) extend the grid
+        to $\{25, 50, 75, 100, 150, 200, 300, 500\}$ for all three models, so criterion (b)'s reference becomes the
+        value at $N=500$ everywhere and the rule stays one rule; it also shows whether hiring's nulled gap settles
+        beyond 300. With 500 probe records credit keeps only 303 records for the eval set, so its reference interval
+        is wider and (b) easier to pass.
   \item \todo{Does the reasoning-correctness effect survive on a larger / instruct RM, and does the RM
         track quality in decision format (AUC of $D$ between strong and weak records, against the
         common-sense reference for credit and a length-only reference for essays)?}
@@ -264,7 +277,8 @@ evidence survives, so they are scheduled ahead of further breadth.
         (\eduEthnicityExplicitAsap{} ASAP vs \eduEthnicityExplicitPersuade{} PERSUADE).
         \emph{Done 2026-09-16:} the pools are now Haim et al.'s Table~3 (40 names). Remaining gap: the
         assumption that a name's gender signal dominates its age and class signals --- see the log entry
-        of that date for the planned check.
+        of that date for the planned check. \emph{Pool level done 2026-09-26} (log entry of that date): sex
+        pools balanced; the ethnicity pools differ strongly in class.
 \end{enumerate}
 
 \subsection*{Codebase: prune and migrate to a fresh repository (planned)}
@@ -573,6 +587,8 @@ minor flag (\ddag).
                 in U.S. Social Security baby-name counts) and, where available, a class or education
                 perception score; slopes near zero support the assumption. (c) Optionally, repeat with a
                 second, age-matched name list. \todo{Schedule after the credit and education re-runs.}
+                \emph{2026-09-26:} (a) cannot detect a pool-level imbalance; the pool gaps are measured
+                (log entry ``proxy names: the pools' cohort and class gaps'').
         \end{itemize}
   \item \textbf{Decision-response arm extended to all three domains.} Each domain now asks its own binary
         question after the marked profile --- hiring: advance to an interview; credit: approve the loan;
@@ -690,7 +706,9 @@ minor flag (\ddag).
                         So the proxy encoding is the Haim sex $\times$ ethnicity name grid drawn at a
                         single pool index (\texttt{ProxyNames.draw\_grid}): index-matched, so a sex or
                         ethnicity swap moves one step in the grid rather than resampling two independent
-                        names and charging the difference to the axis.
+                        names and charging the difference to the axis. \emph{Revised 2026-09-26: the four
+                        names are drawn independently; the shared index matched nothing, the lists being
+                        alphabetical (factorial.py review entry, finding 2).}
                   \item \textbf{No sex noun in the explicit clause} (``The student is Black, female, and
                         from a low-income household''): ``girl'' vs ``young woman'' would make the sex
                         wording covary with the writer's age --- the error the hiring career-gap proxy
@@ -1099,7 +1117,8 @@ per-domain lexicon of every word that varies between the design's clauses, all p
 that names nothing), \emph{evasive}. Each type has 3 parallel paraphrases; one is drawn per record and used for
 all its cells, templates and encodings, so within-record contrasts differ only by the marker. Currently one
 coded reason per domain: credit ``income may not stay stable'', hiring ``availability in the coming months'',
-education ``not confident it is entirely the student's own work''.
+education ``not confident it is entirely the student's own work''. (2026-09-27: all responses rewritten to one
+token length, same reasons; see the \texttt{cross\_marker.py} review entry.)
 
 \textbf{Open: more coded reasons.} One coded reason per domain fits some axes' stereotypes and not others ---
 income stability fits the young and the married applicant, hardly sex on its own --- so a null coded disparity
@@ -1187,7 +1206,8 @@ leaving 463 strong and \textbf{190 weak} records available (weak is credit's bin
 (11\,s per batch of 8). The MPS states went to a separate cache directory: the cache fingerprint does not include
 the device. \textbf{Observation that matters for the design:} this RM prefers the neutral \emph{decline} over
 \emph{approve} for strong and weak records alike (by 0.7--2.3 reward depending on the paraphrase; the evasive
-answer sits near $-4.5$). The DiD cancels such a wording-level preference, but it pins strong-record accuracy at 0,
+answer sits near $-4.5$; 2026-09-27: the neutral decline was then the longer response at every paraphrase, by
+2--7 words, so part of this preference may be length --- re-check on the rebalanced pools). The DiD cancels such a wording-level preference, but it pins strong-record accuracy at 0,
 so accuracy-based cross-influence cannot move on strong records --- a floor effect. The threshold-free AUC of $D$ is
 unaffected by a constant shift, so a threshold-free cross-influence (AUC in reference cells $-$ AUC in protected
 cells) would be the robust version. Built in stage 4.
@@ -1545,8 +1565,10 @@ $n = \lceil ((z_{1-\alpha/(2m)} + z_{0.80})\, r/\delta)^2 \rceil$, for the large
 by the records available (credit weak: 194). $\delta$ (the smallest scaled effect of interest) and $m$ (the Holm
 family size) are fixed together with the headline family, which is still open; the sizing tool therefore reports
 $\delta \in \{0.05, 0.10, 0.20\}$ $\times$ $m \in \{1, 4, 12\}$. The rule reads only SDs, never an effect's mean
-or interval (the tool is blinded to them and a test pins that), so $n$ cannot follow the pilot's effects. Because
-the record selection is seeded, the main runs' records are a prefix of the pilot's.
+or interval (the tool is blinded to them and a test pins that), so $n$ cannot follow the pilot's effects. The record selection
+is seeded, so the main runs' records are a prefix of the pilot's only when \texttt{probe\_records} is the same in
+both: a different value excludes other probe records, which changes the remaining pool and so the seeded order.
+(Corrected 2026-09-26; the earlier sentence claimed a prefix unconditionally.)
 
 \subsection*{2026-09-26 --- the pilot ran; decisions postponed until the code review; a first look}
 \emph{Provisional throughout: produced by code that has not been reviewed line by line (only \texttt{substrates/}
@@ -1615,6 +1637,8 @@ With 450--600 records per group nearly every interval excludes zero, so the read
         preference for declining. In a 30-item MPS smoke run \modelSmall{} preferred the discriminatory verdict on
         every item and every credit axis. A fair \emph{decline} (declining on the merits, attribute irrelevant)
         would separate the two; the cross-marker design's neutral-vs-overt decline contrast already does.
+        \emph{Resolved 2026-09-27: a length-matched \texttt{neutral\_decline} verdict and its contrast were added;
+        see the \texttt{verdicts.py} review entry.}
 \end{enumerate}
 
 \subsection*{2026-09-26 --- intervals for every arm}
@@ -1802,8 +1826,608 @@ the defaults, so those keep the BOS; Nemotron's card tokenizes the template's id
 without one (\texttt{TEMPLATE\_TOKENIZED}). The other six models agree with their templates either way. The loader
 logs the relation for every model. None of the four had been run, so no result changes.
 
+\subsection*{2026-09-26 --- 70B pilot (RB2-70B, both GPUs): speed and a first look}
+\emph{Provisional: unreviewed code, small $n$ (credit and hiring 30 $+$ 30, education 16 $+$ 16, 50 probe records).}
+
+\textbf{Speed.} 2\,h\,15\,min in total (estimate $\approx$3\,h). The model sits 40/44 modules on the two A100s, no
+CPU offloading, peak 136--139 of 160\,GiB --- the essays fit only at batch 2. Forward passes 7.1 / 8.1 / 2.0 texts/s
+(credit / hiring / education); the CPU side is $\approx$10\,s per domain after the speedups. Extrapolated to full
+size: $\approx$27\,h of both GPUs per 70B model (credit 5.4, hiring 4.4, education 17.5), so the two 70B models
+occupy the workspace for $\approx$2.3 days. Education dominates and is compute-bound (long essays), so the number of
+education records --- fixed by the postponed power analysis --- is the lever, not batching.
+
+\textbf{Quality.} The 70B tracks quality at least as well as the 8B: hiring AUC of $D$ 0.87 (0.89 length-residualised,
+balanced accuracy 0.81); education 0.945 but 0.64 after removing length, the 8B's pattern; credit 0.63 (wide
+interval). \textbf{Effects.} Scaled $D$-disparities on strong records agree in sign with the 8B nearly everywhere
+and not with \modelSmall{}: credit explicit favours pole A on every axis (intersection $+0.18$); education explicit
+favours Black and low-income writers (ethnicity $+0.23$, intersection $+0.29$), as on the 8B and opposite to the 0.6B;
+hiring penalises parental leave ($-0.11$) and, in the proxy encoding, age ($-0.14$) and the intersection ($-0.20$).
+One sign flip: credit proxy age ($-0.04$ vs.\ the 8B's $+0.05$). Caution for RQ6: the 8B (Skywork) and the 70B
+(AllenAI) share the Llama-3.1 base, so their agreement may be the base model's, not size's.
+
 \todo{Numbers above are literal/preliminary --- wire into \texttt{shared/numbers.tex} via
 \texttt{export\_paper\_numbers.py} once stable; promote settled results into progress\_*.tex, then sections/.}
+
+\subsection*{2026-09-26 --- proxy names: the pools' cohort and class gaps}
+Follow-up to the 2026-09-16 assumption that a name's sex signal dominates its age-cohort and class signals
+(pairs/ review, \texttt{markers.py}).
+
+\textbf{What would bias a proxy contrast.} Names are drawn uniformly per block, so a single name's cohort or class
+signal adds noise, not bias. A proxy contrast is biased by the difference between the two pools' \emph{means},
+times the RM's sensitivity to that signal. Two consequences for the planned check: (a) leave-names-out cannot see
+this, because every fold carries the same pool imbalance; the pool gap is a property of the names alone and needs
+no model run. The sensitivity does need one (below).
+
+\textbf{Data} (\texttt{configs/name\_pool\_signals.yaml}, kept in sync with the pools by a test). Cohort: the
+count-weighted median birth year of each name for the pool's sex, SSA national counts 1880--2017 (R package
+\texttt{babynames} 1.0.1, CC0). Class: the share of mothers with some college or more among children given the
+name, New York birth records 1994--2012 \citep[][supplement, Table~A1]{gaddis2017lakisha} --- an objective SES
+correlate of the naming families, not a perceived-class rating. Haim et al.\ drew all 40 names from Gaddis's set,
+so every name is covered. \citet{crabtree2023validated} have perceived income and education ratings, but only for
+5 of our 40 first names, all in one pool (Lakisha, Latonya, Latoya, Tamika, Tanisha), so they cannot give a gap.
+
+\textbf{Gaps} (pole A pool mean $-$ pole B pool mean; SE between names, 10 per pool; between-name SD within a pool
+$\approx$9--13 years and 7--14 points):
+\begin{center}\small
+\begin{tabular}{llrr}
+  \toprule
+  contrast & used in & cohort (years) & mothers with college (pp) \\
+  \midrule
+  sex $\mid$ white names   & credit, hiring, education & $-1.0$ (5.5) & $+5.9$ (6.0) \\
+  sex $\mid$ Black names   & education                 & $-5.5$ (4.3) & $-2.4$ (5.1) \\
+  ethnicity $\mid$ female  & education                 & $-0.7$ (4.7) & $\mathbf{-43.7}$ (6.3) \\
+  ethnicity $\mid$ male    & education                 & $+3.8$ (5.1) & $\mathbf{-35.4}$ (4.7) \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+  \item \textbf{Proxy sex, credit and hiring: the pools are balanced} on cohort and class (both gaps well inside one
+        SE and small against the between-name spread). The pool-level premise of the assumption holds. The
+        cohort signal also competes with the birth year stated in the same clause.
+  \item \textbf{Proxy sex, education:} as above for white names; among Black names the female pool is $\approx$5 years
+        older (Lakisha, Latonya, Tamika: 1976--79; Jayvon, Keyshawn, Latrell: 2002--06). The student clause
+        states no age, so a cohort-old name is at most an oddness cue. Modest.
+  \item \textbf{Proxy ethnicity, education: the assumption fails on class.} Children with the Black-pool names had
+        35--44 points fewer mothers with college. Whatever the RM reads from that, the proxy ethnicity contrast
+        carries it: it is ethnicity plus the names' SES signal (people's race perception of a name follows the
+        mothers' education, \citealp{gaddis2017lakisha}; Crabtree et al.\ find Black-signalling names perceived
+        with less income and education). The explicit ethnicity clause has no names, so explicit vs.\ proxy is the
+        in-design comparison. The proxy economic axis (school poverty) is a class cue too, so the proxy
+        ethnicity $\times$ economic interaction is read with this in mind.
+  \item Sex ambiguity (same-sex share of births $<0.95$): Logan 0.93, DaShawn 0.94, Latrell 0.87. Minor.
+\end{itemize}
+
+\textbf{Limits.} SSA counts end in 2017 (Logan, Claire, Abigail, Hunter were still near their peak; later
+medians with newer data, on both sides of the sex contrast). Births, not the living population. Claire is bimodal
+(IQR 1947--2008). Gaddis's counts are one state, and tiny for Lakisha (22) and Latonya (15).
+
+\textbf{Open (not decided; after the review):} (i) record as a caveat on every education proxy-ethnicity number;
+(ii) swap to SES-matched Black names from Gaddis's set (e.g.\ Jabari 56.8, Nia 64.3, Malia 60.0, Jalen 55.7 \% some
+college) --- which Gaddis finds are perceived as Black less consistently, a trade-off between race-signal
+strength and class balance; (iii) measure the RM's sensitivity directly with a within-race name contrast (high-
+vs.\ low-SES names, same sex) and a within-sex cohort contrast (young vs.\ old names), which turns the gaps above
+into a bound on the bias. (iii) needs new pairs, so it goes with the pilot re-run.
+
+\subsection*{2026-09-26 --- code review, pairs/ (session 2): markers.py}
+Line-by-line against the docstrings, these notes and the tests. What the module is still used for: the name
+pools and age anchors (factorials), \texttt{MarkerSpec}/\texttt{GeneratedPair}, the education stage axis and
+its ladder (\texttt{make\_marker}/\texttt{make\_pair}, stage design only), \texttt{real\_field\_clause}
+(credit real-field check), and two explicit clauses of the unported reasoning arm. Correct as checked: the
+real-field clauses match the reviewed codebook (A91/A93/A94; A92 raises); the stage proxy clauses are within
+2 characters of the reference and the explicit ones equal in length (measured), rungs monotone in age; the
+four pools equally long (\texttt{draw\_grid} needs it); \texttt{AGE\_YOUNG}/\texttt{AGE\_OLDER} = 30/50,
+pole A young. Findings:
+\begin{enumerate}
+  \item \textbf{Medium --- latent pole inversion.} The legacy single-axis \texttt{ethnicity\_marker} had
+        \emph{white} as pole A, against the factorial rule, and was still reachable: \texttt{make\_marker} was
+        the default \texttt{marker\_fn} of \texttt{verdicts.build\_decision\_item}. An education ethnicity item
+        built without \texttt{marker\_fn} put ``I doubt that a student from this background wrote the essay
+        without help'' on the \emph{white} student --- anti-white bias read as anti-Black. Not live
+        (\texttt{run\_decision\_response} always passes the domain's builder); the same error class as the
+        2026-09-17 fix. \emph{Fixed with item 2}: the default now raises for every demographic axis (test).
+  \item \textbf{Low --- $\approx$150 lines of superseded single-axis markers} (sex, age with a graduation-year
+        proxy, family status with a career-gap proxy, marital status, ethnicity, intersection), described in the
+        module docstring as the current axes. \emph{Fixed 2026-09-26: deleted.} The reasoning arm's two clauses
+        (parental leave; the intersection, = the hiring factorial's explicit pole-A corner, pinned by a test)
+        are literals in \texttt{REASONING\_PREMISES}; reasoning items and stage pairs verified byte-identical
+        before/after (hashes). Tests that only exercised the legacy markers deleted --- the factorial and stage
+        tests cover injection and the gate --- and the loader/gate-mechanics fixtures ported to factorial pairs.
+        Two decision-arm tests had silently used the legacy default builder; they now pass the hiring builder,
+        as the runner does. Pipeline appendix (education paragraph) updated.
+  \item \textbf{Low --- wrong provenance on the stage pairs.} \texttt{held\_fixed} lists sex, age and family
+        status (absent on the stage essays, not held fixed; age is what the stage axis varies) and
+        \texttt{intersectional\_cell} carries dummy keys. Nothing reads either field; a manifest reader is
+        misled. \emph{Fixed 2026-09-26:} \texttt{held\_fixed} = essay content and template;
+        \texttt{intersectional\_cell} names only the varied axis (e.g.\ \texttt{grade\_level:
+        grade6-vs-doctorate}), in the factorial format. Every other field of the stage pairs is byte-identical
+        to before (compared against HEAD); test pinned. The local \texttt{asap\_stage}/\texttt{persuade\_stage}
+        manifests still carry the old metadata until the post-review regeneration --- no number depends on it.
+  \item \textbf{Low --- the ASSUMPTION comment above the name pools} still says ``not validated'' (pool level
+        checked today) and ``the white names are the sex proxy'' (in education the grid's Black names carry sex
+        too). \emph{Fixed 2026-09-26:} the comment states how each domain carries sex, the pool-level result
+        (sex pools balanced; ethnicity pools 35--44 points apart in mothers' education) and that the RM's
+        sensitivity is not measured yet.
+  \item \textbf{Low --- stale docstring claim} that the generator relaxes the character bound for composite and
+        stage clauses; no generator does per axis (largest composite gap measured: 7 characters).
+        \emph{Fixed with item 2} (module docstring rewritten).
+  \item \textbf{Low --- dependency direction}: the lowest module of \texttt{pairs/} imported the credit renderer
+        for \texttt{make\_pair}'s default. \emph{Fixed with item 2}: \texttt{make\_pair} requires
+        \texttt{render\_fn} and \texttt{content\_label}; the credit record type is a type-checking import only.
+\end{enumerate}
+Also fixed: \texttt{real\_field\_clause}'s docstring called its user the ``family-status arm'' (it contrasts
+divorced with married men: marital status); \texttt{make\_marker}'s one-entry lookup table is a plain test,
+with a docstring saying it raises for demographic axes. Noted for the \texttt{verdicts.py} session: whether
+\texttt{build\_decision\_item} should require \texttt{marker\_fn} outright. \textbf{markers.py: reviewed}, all six
+findings closed (tests: 627 passed).
+
+\subsection*{2026-09-26 --- code review, pairs/ (session 2): factorial.py}
+Line-by-line against the docstrings, these notes and the tests. \textbf{Pole orientation (review flag from the
+pilot's first look), the pairs/ half: correct.} All three designs list pole A first (female / 30 / married;
+female / 30 / parental leave; female / Black / low income), and in every generated pair side A is the pole-A cell
+--- 1{,}480 pairs checked (3 designs $\times$ 2 encodings $\times$ 20 seeds). The opposite signs between models in the
+pilot therefore do not come from pair generation; the check continues in \texttt{scoring/} and \texttt{probes/}.
+Also correct: cells, \texttt{axis\_pairs} (one factor flipped over the 4 settings of the other two; the corner
+flips all three), clauses as documented and tested, largest clause-length gap 7 characters; proxy names drawn
+once per block and held across the 8 cells; whole-block drop per encoding; unique pair ids; the audit fixes
+(\texttt{real\_fields} on pair and cell rows, \texttt{stable\_rng}/\texttt{block\_rng} seeds) intact; the credit proxy
+corner flips marital status explicitly, which \texttt{run\_additivity} (refuses credit proxy) and the cross-marker
+report (\texttt{explicit\_axes}) handle. Findings, all low:
+\begin{enumerate}
+  \item \textbf{No test pinned side A to pole A} --- only the factor order. Swapping both texts and both clauses
+        in \texttt{factorial\_pairs} would flip every disparity while the Tier-1 gate and all tests still pass.
+        \emph{Fixed 2026-09-26:} \texttt{tests/test\_factorial\_poles.py} (every design, encoding and pair; verified
+        to fail on exactly that swap).
+  \item \textbf{The ``index-matched'' name grid matches nothing.} Education draws its four names at one list
+        index; the justification (``a swap moves one step in the grid instead of resampling two independent
+        names'') holds for independent draws too, and the lists are alphabetical, so index $i$ pairs names
+        arbitrarily (Laurie, born $\approx$1962, always opposite Ryan, $\approx$1991). No bias --- the expected
+        contrast is the pool-mean difference either way --- but only 10 fixed name quadruples, so per-name
+        effects cannot be separated (Laurie's from Ryan's), which blocks the planned per-name check; and credit
+        and hiring already draw independently. \emph{Decided and fixed 2026-09-26: the four names are drawn
+        independently} (\texttt{ProxyNames.draw\_grid}); docstrings, the generator, the appendix and the
+        2026-09-17 entry annotated. Test: over 2{,}000 draws every one of the 100 name pairings of each sex
+        and ethnicity contrast occurs (the shared index gave 10). Only the education proxy pairs change (hashes
+        of the other five design $\times$ encoding outputs identical to before); their manifests and the
+        blatant arm's education proxy items are regenerated after the review.
+  \item \textbf{Credit-only module API} (\texttt{FACTORS}, \texttt{CELLS}, \texttt{PROXY\_AXES},
+        \texttt{factorial\_clause}, \texttt{cell\_label}, \texttt{axis\_pairs}, \texttt{AXES}) used by tests and two
+        callers only; the other designs use the design's methods. \emph{Fixed 2026-09-26:} deleted;
+        \texttt{generate\_credit}, \texttt{substrates/domains.py} and the credit factorial tests use
+        \texttt{CREDIT\_DESIGN}. Same default axes; all six design $\times$ encoding outputs unchanged (hashes).
+  \item \textbf{Stale comments}: ``age via a birth year in both designs'' (three designs; education has no age);
+        ``as in markers.py'' (deleted marker); the local-import comment names the wrong reason (the cycle is
+        factorial $\to$ manifest $\to$ positionality $\to$ factorial, which manifest's \texttt{try/except} would
+        swallow). \emph{Fixed 2026-09-26}, plus the pole-A list in the docstring now names all three
+        designs. The cycle claim was tested: with the import at module level the A2 template registry comes out
+        empty (0 of 12 entries) and nothing raises --- noted for the \texttt{manifest.py} session (the silent
+        \texttt{try/except} imports).
+  \item \textbf{Proxy metadata uses the explicit level names}: \texttt{intersectional\_cell}, pair ids and the
+        cross-marker \texttt{by\_stratum} keys say \texttt{parental\_leave} / \texttt{low\_income} where the proxy
+        clause states a parent-association role / a high-poverty school (the labels do use the proxy names).
+        \emph{Fixed 2026-09-26} by documenting it (\texttt{proxy\_labels} and \texttt{pair\_cell\_meta}
+        docstrings), not renaming: the keys feed cells.jsonl and the result files.
+  \item \textbf{Additivity wording}: ``intersection $\approx$ sum of the three marginals if additive'' is true,
+        but the corner is blind to the two-way interactions (they cancel in it): corner $-$ $\sum$ mains is the
+        three-way term only. \emph{Fixed 2026-09-26} (module docstring: the corner test sees only the three-way
+        term; the two-way interactions are estimated from the 8 cells). The wording in the scoring and runner
+        code is checked in those sessions.
+\end{enumerate}
+\textbf{factorial.py: reviewed}, all six findings closed (tests: 632 passed).
+
+\subsection*{2026-09-26 --- code review, pairs/ (session 2): validate.py}
+Line-by-line against the docstring, its callers (the factorial loop, the stage and positioned generators), the
+tests, the appendix and every local manifest (415k pairs). \textbf{The gate has never fired:} 0 blocks dropped in
+every manifest (credit, cv, PERSUADE, ASAP, stage, positioned); the largest differences anywhere are 8 characters,
+3 words and a Flesch readability difference of 6.2, against the default limits 12 / 3 / 8. Its length and
+readability checks are a guard against a builder mistake, not a filter; what bites is the identical-remainder
+check (any difference outside the marker clause fails). Findings:
+\begin{enumerate}
+  \item \textbf{Failure reasons counted by measured value} (medium, reporting). The discard reports keyed each
+        reason by cutting the message at `` ('' / `` >'', which keeps the number in length and Flesch messages:
+        three pairs over the character limit gave \texttt{char-length delta 22}, \texttt{\dots 23},
+        \texttt{\dots 24}, one count each. The parsing was copied in four places. No manifest affected (nothing
+        failed). \emph{Fixed 2026-09-26:} each reason carries a stable code (\texttt{REASON\_CODES}:
+        \texttt{clause\_not\_once}, \texttt{content\_differs}, \texttt{char\_delta}, \texttt{token\_delta},
+        \texttt{flesch\_delta}) and one helper, \texttt{tally\_reasons}, counts them for the factorial, stage and
+        positioned loops. Tests: codes match the messages; three different overshoots give one key; the credit
+        generator's report and the stage loop's report count by code.
+  \item \textbf{Readability check can switch off silently} (medium-low). A missing \texttt{textstat}, or an error
+        inside it, skips the Flesch check and passes the pair; no generator's report records whether it ran. The
+        current manifests were built on the Mac with textstat 0.7.13, so they were checked. \emph{Fixed
+        2026-09-26:} \texttt{textstat} is a required import (it is in \texttt{requirements.txt}) and both silent
+        \texttt{except} blocks are gone, so a missing package stops generation. (textstat returns no NaN, even on
+        empty text, so the limit comparison cannot pass a pair by default.) Test: a pair that differs only in
+        syllables fails with \texttt{flesch\_delta} alone.
+  \item \textbf{Position-blind strip} (low). The check only compares the texts with each clause removed: a clause
+        in the middle on side A and at the end on side B passes, and so does a pair with the same clause on both
+        sides. 0 of 415k current pairs affected; it matters most for the positioned design, where position is
+        the manipulated variable. \emph{Fixed 2026-09-26:} with equal remainders, the gate now also requires
+        each clause to start at the same index (equal remainders plus equal start mean identical text before and
+        after the clause), code \texttt{clause\_position}, and rejects identical clauses, code
+        \texttt{no\_contrast}. Tests: a clause moved to the end of side B and a pair with the same clause on
+        both sides each fail with that code alone. All 415k local pairs still pass the structural checks.
+  \item \textbf{\texttt{validate\_pairs} unused} (low): only one test called it; every generator gates block by
+        block. \emph{Fixed 2026-09-26:} deleted (with 1; its counting is \texttt{tally\_reasons}).
+  \item \textbf{Docs}: ``single-axis'' (it checks one differing slot; the corner varies three attributes
+        inside it); ``tokens'' are whitespace words, not model tokens; ``financial content''; the career-gap
+        example (gone); ``over-generate $\sim$3$\times$'' (nothing over-generates; failing blocks are dropped
+        whole, in every generator, not only credit as the appendix says). On essays the Flesch limit cannot come
+        near binding: one clause moves the score by at most 2.5 on ASAP (essays from 63 words) and 0.84 on
+        PERSUADE. \emph{Fixed 2026-09-26:} module, \texttt{Thresholds} and \texttt{validate\_pair} docstrings
+        rewritten (the \texttt{max\_token\_delta} name is kept, being a CLI flag and a manifest key); the
+        content-drift message says ``single-slot''; the appendix's Tier-1 paragraph rewritten.
+\end{enumerate}
+For the \texttt{runners/} session: the positioned generator loosens the limits (20 / 5 / 12) and the hiring
+intersection the character limit (40); neither is needed on current data (positioned at most 8 / 3 / 1.1, the
+hiring intersection 5 characters). The default limits are repeated by hand in four generator CLIs instead of
+coming from \texttt{Thresholds()}.
+\textbf{validate.py: reviewed}, all five findings closed (tests: 637 passed).
+
+\subsection*{2026-09-26 --- code review, pairs/ (session 2): manifest.py}
+Line-by-line against the docstring, its callers (all five generators), the loader, the tests and the local
+manifests. Pair rows and manifests are written correctly: nothing lost or mislabelled, every current template hash
+reproduces. Findings:
+\begin{enumerate}
+  \item \textbf{Generator version never bumped} (medium, provenance). \texttt{GENERATOR\_VERSION = "0.2.0"} dates
+        from the credit factorial; the bios and education factorials, the bios scrub and the independent name
+        draws changed the outputs under the same version, and nothing records the code. After regeneration the
+        education proxy manifests carry other names under the same version and seed. \emph{Fixed 2026-09-26:}
+        \texttt{manifest.json} records \texttt{code} = the git commit plus the paths that differ from it
+        (\texttt{git status}; ignored files such as the generated data do not count; all \texttt{null} without
+        git), so the code is identified even where the version is not bumped; the version is bumped to 0.3.0
+        for this review's output changes. Every pair row's \texttt{provenance} will say 0.3.0 after regeneration;
+        the embedding cache is keyed on the text only, so nothing is invalidated. Tests: a temporary repo (clean,
+        ignored data still clean, then a modified and a new file listed), a folder outside any repo, and
+        \texttt{write\_manifest} recording both.
+  \item \textbf{Silent \texttt{try/except} imports, dead CV registry} (medium-low). \texttt{pairs.cv\_render} does not
+        exist (\texttt{CV\_TEMPLATES} always empty, its ``still hash'' comment false; \texttt{CV\_ATTRIBUTION} unused);
+        the three real imports were wrapped too, so an import error (e.g.\ the factorial cycle) surfaced later as a
+        \texttt{KeyError} on a template id; the registries were merged with \texttt{\{**a, **b\}}, so an id reused
+        across domains would silently overwrite. \emph{Fixed 2026-09-26:} plain imports, CV lines deleted,
+        \texttt{\_merge\_templates} raises on a duplicate id. Verified in a scratch copy that the factorial cycle
+        now raises \texttt{ImportError}; the registry holds all 18 templates whichever \texttt{pairs} module is
+        imported first; every template hash in the local manifests is unchanged (the legacy
+        \texttt{cv\_synthetic\_legacy} folder was already unhashable and nothing reads it). Tests:
+        \texttt{tests/test\_manifest.py} (every registry present and non-empty, duplicate id raises, unknown id raises).
+  \item \textbf{Spot-check sample misses strata} (low): every $k$-th row of a fixed per-block order; credit's 30
+        rows are all sex/explicit and marital\_status/explicit (no proxy, age or corner pair). \emph{Fixed
+        2026-09-26:} a seeded sample stratified by (axis, encoding), $\lceil 30/\text{strata}\rceil$ rows per
+        stratum (all of a smaller one), in manifest order, from \texttt{stable\_rng}; a random draw within the
+        stratum rather than an even spacing, which could again line up with the per-block order. On the local
+        manifests every stratum is covered: credit 7 of 7 (35 rows), cv 8 of 8, PERSUADE 8 of 8, stage 10 of 10,
+        positioned 9 of 9. Tests: coverage and order, seeding, a one-row stratum kept.
+  \item \textbf{Credit defaults for domain and licence} (low): \texttt{write\_manifest} and \texttt{pair\_to\_record}
+        default to \texttt{domain="credit"} and the German Credit attribution (\texttt{generate\_credit} relies on
+        them), so a generator that forgets them labels its manifest credit, CC-BY. \emph{Fixed 2026-09-26:} both
+        required (no default); \texttt{generate\_credit} passes them explicitly. Test: omitting either raises.
+        A credit regeneration into a scratch folder gave byte-identical \texttt{cells.jsonl}, identical pair rows
+        apart from the version, and a \texttt{manifest.json} differing only in \texttt{generator\_version} and
+        \texttt{code}.
+  \item \textbf{Positioned provenance incomplete} (low): only the sentence template is hashed; the essay shell
+        (\texttt{header\_template}, in \texttt{exemplar}) is not, so a change to it leaves the hashes unchanged.
+        \emph{Fixed 2026-09-26:} a pair naming a shell gets \texttt{provenance.header\_template\_hash}, and the
+        manifest's \texttt{templates} lists the shell next to the sentence templates. Other pairs are unchanged.
+        Tests: a positioned pair in the \texttt{edu\_v2} shell carries both hashes and the manifest lists both
+        ids; a credit pair carries no shell hash.
+  \item \textbf{Docs}: ``credit pipeline'', ``five RMs'', ``counts per \dots cell'' (it counts per
+        axis/encoding/role), unused \texttt{asdict}; \texttt{EDU\_ATTRIBUTION} describes only the stage design
+        (``header markers \dots grade level $\to$ age''). \emph{Fixed 2026-09-26:} module docstring rewritten
+        (every domain, what \texttt{manifest.json} records, the stratified spot-check, \texttt{cells.jsonl} written by
+        the factorial generators themselves, every RM); \texttt{asdict} removed; \texttt{EDU\_ATTRIBUTION} names the
+        factorial (stated, or first name + the school's free-lunch share), the stage design and the positioned
+        sentence. Only the \texttt{attribution} line of the education manifests changes.
+\end{enumerate}
+\textbf{manifest.py: reviewed}, all six findings closed (tests: 648 passed).
+For later sessions: no result JSON records which \texttt{pairs.jsonl}/\texttt{cells.jsonl} it ran on
+(\texttt{scoring/}, \texttt{runners/}); \texttt{role} is always \texttt{"probe"} and the loader filters on it, the real
+split being \texttt{probe\_records} (\texttt{scoring/}).
+
+\subsection*{2026-09-27 --- code review, pairs/ (session 2): cross\_marker.py}
+Line-by-line against the docstring, its tests, the runner, the metrics docstring and every local
+\texttt{cells.jsonl}. Correct: no response states a value and only \emph{overt} names a category (test, all three
+domains); one paraphrase index per record, shared by all its cells; hiring's prompt names the \emph{target} role
+(\texttt{real\_fields["role"]} is the role screened for, not the person's profession), so the strong/weak split holds;
+all 30{,}668 local blocks parse (credit, cv, PERSUADE, ASAP) and in each the eight clauses start at the same index;
+the disparity sign matches the metrics (negative $=$ pole A declined more). Findings:
+\begin{enumerate}
+  \item \textbf{Responses not length-matched} (medium, mechanism layer). The docstring said index $i$ is
+        length-matched across types (the test allowed 8 words), but the differences all ran the same way:
+        \emph{decline} longer than \emph{approve} at 9 of 9 indices (2--7 words, 13--34 characters), \emph{overt}
+        shorter than \emph{decline} at 8 of 9 (up to 6 words), \emph{evasive} up to 79 characters shorter. The
+        disparities compare one response text across cells, so length cancels there (the headline is unaffected);
+        it does not cancel where types are compared: the D and O levels and the \texttt{unfair} direction
+        $h(\text{overt})-h(\text{decline})$, which also picked up ``shorter response''. RMs are length-sensitive.
+        \emph{Fixed 2026-09-27 (option a, rebalance):} all 45 responses rewritten, same reasons and parallel
+        structure, so that every response of a domain, every type and index, is within 2 tokens (Llama-3.1, Qwen3
+        and Gemma-2 tokenizers, measured) and 15 characters of the blatant arm's evasive verdict (the fixed
+        paraphrase 0, 28--29 tokens); the decision sentences are unchanged. Tests: the 15-character bound always;
+        the 2-token bound on the three tokenizers where cached (skipped otherwise); lexicon check still clean.
+        Only the mechanism half of \texttt{tests/golden/cross\_marker.json} changed (the metrics half runs on
+        synthetic rewards); regenerated on purpose after checking that the committed pools still reproduce it.
+        Every cross-marker number changes; all runs are redone after the review anyway. The 2026-09-24 smoke-run
+        observation (decline preferred over approve) is annotated.
+  \item \textbf{\texttt{block\_from\_row} looser than its docstring} (low): a cell missing a factor raises
+        \texttt{KeyError} (crash) instead of \texttt{BlockMismatch} (drop and count); no clause-position check;
+        a duplicate cell entry would silently overwrite. \emph{Fixed 2026-09-27:} all three are
+        \texttt{BlockMismatch} (the block is dropped and counted in \texttt{cells\_report}); the position check is the
+        Tier-1 gate's (equal remainders plus equal clause start). All 30{,}668 local blocks still parse, 0 dropped.
+        Tests: a missing factor is dropped and counted in \texttt{load\_cell\_blocks}, a duplicate cell and a clause
+        moved to the end of the document each raise; each fails on the old code.
+  \item \textbf{Prompt frames not checked for category words} (low): \texttt{DECISION\_FRAMES[*].prompt} is
+        identical in every cell, so it cannot carry a value, but a category word in it would prime every cell
+        unnoticed; none today. \emph{Fixed 2026-09-27:} \texttt{frame\_violations} checks the frame template
+        (placeholders removed) against the full lexicon, values and categories; all three frames clean. The
+        filled-in hiring role is not checked: it is the same in every cell and names no attribute, and one of the
+        28 professions, ``personal trainer'', would trip the lexicon's ``personal'' (a false positive). Tests: all
+        frames clean; a frame naming ``the applicant's age'' is caught.
+  \item \textbf{Docs}: ``paraphrase 1 of evasive'' means index 0; the disparity sentence gives no sign;
+        the \texttt{block\_from\_row} docstring (see 2). \emph{Fixed 2026-09-27:} comment says paraphrase 0 (and
+        that its length is the target); the disparity sentence says negative $=$ pole A declined more; the
+        module docstring names both lexicon checks and the block checks.
+\end{enumerate}
+\textbf{cross\_marker.py: reviewed}, all four findings closed (tests: 658 passed). A fifth, found while preparing
+the file overview, is \emph{recorded, not fixed (decided 2026-09-27: the response set stays as it is)}: the
+attribute-word check misses possessives (\texttt{\_words} keeps ``woman's'' as one token) and has no gendered
+pronouns (he/she/her/his); no current response or frame contains either (all 45 responses and 3 frames checked).
+
+\subsection*{2026-09-27 --- code review, pairs/ (session 2): verdicts.py}
+Line-by-line against the docstring, the decision and reasoning runners, the tests, and the verdicts it produces
+for every domain $\times$ axis $\times$ encoding. Correct: the factorial marker builders put the protected level
+on side A and every discriminatory verdict names that level (22 axis $\times$ encoding cases printed); credit's
+marital proxy is refused; the reasoning premises equal the hiring pole-A corner (test); the known reasoning-arm
+gap (\texttt{years\_experience} $\to$ ``several'') is still pinned. Findings:
+\begin{enumerate}
+  \item \textbf{The arm's win rates confound the reason with the decision and with length} (medium).
+        \emph{discriminatory} was the only decline and always the longest (5--10 words more than fair and
+        neutral), so \texttt{discriminatory\_win\_rate} and \texttt{disc\_win\_rate\_vs\_neutral} also measured a
+        preference for declining and for length. The 2026-09-24 smoke run found \modelSmall{} prefers a neutral
+        decline over approve by 0.7--2.3 reward, enough to push \texttt{disc\_win} above 0.5 with no acceptance of
+        the attribute reason --- the result the module called the strongest possible finding. \emph{Fixed
+        2026-09-27 (option a):} a fifth verdict, \texttt{neutral\_decline} (the same merit-conceding opening, then a
+        decline for a reason outside the merits that names no attribute: the position has just been filled; the
+        lender does not offer loans of this term; the essay was submitted after the deadline), and the clean
+        contrast \texttt{disc\_win\_rate\_vs\_neutral\_decline} with \texttt{mean\_gap\_neutral\_decline\_minus\_disc}
+        (\texttt{scoring/demographic\_experiment.py}, with bootstrap intervals and the nulled-minus-baseline change;
+        the runner prints it). All verdicts rewritten so that every verdict of a domain, every variant and axis, is
+        within 2 tokens (Llama-3.1, Qwen3, Gemma-2) of the evasive verdict, which stays fixed as it is also the
+        cross-marker length target; same reasons and meaning, shorter openings. The old keys are kept (and the
+        exported \texttt{decisionDiscWin} macros), but only the new contrast holds the decision fixed. Tests: token
+        bound on the three tokenizers where cached, a 30-character fallback (the fair verdict's category nouns are
+        long words, few tokens), the two neutral verdicts free of attribute words, the neutral decline declines,
+        the metric (a decline-preferring RM wins against fair but not against the neutral decline), the
+        intervals. All earlier blatant-arm results predate this and are superseded.
+  \item \textbf{Wording} (low). Credit sex: ``a woman is a weaker repayment risk'' read as \emph{less} risky, so
+        the reason contradicted the decline; education intersection: ``a school like that'' had no antecedent in
+        the explicit encoding (a household); the hiring prompt read ``screening a candidate for a surgeon''.
+        \emph{Fixed 2026-09-27} with finding 1 (``a worse repayment risk''; ``I doubt a poor Black girl wrote it'')
+        and the prompt ``screening a candidate for a position as \{role\}''. The prompt is shared with the
+        cross-marker design and the reasoning arm, so every hiring run of all three changes; its test and the
+        generator comment updated.
+  \item \textbf{Dead paths} (low): \texttt{marker\_fn} optional with a default (\texttt{make\_marker}) that knows
+        only the stage axes; the only such axis with verdict phrasing, \texttt{grade\_level}, is reached by no
+        runner (education's domain axes do not include it); \texttt{AxisPhrase.pole} is \texttt{"a"} everywhere,
+        its comment refers to the deleted single-axis \texttt{ethnicity\_marker}. \emph{Fixed 2026-09-27:}
+        \texttt{marker\_fn} is a required keyword (no default builder); \texttt{pole} and its comment deleted, the
+        prompt always carries \texttt{clause\_a}; the \texttt{grade\_level} phrase deleted (the stage marker in
+        \texttt{education\_marker} stays, the stage design uses it). Tests: omitting \texttt{marker\_fn} raises;
+        every verdict axis is one of the domain's axes. 653 passed (12 fewer: the \texttt{grade\_level} cases and
+        the default-builder test, replaced by the two above).
+  \item \textbf{Silent role fallback} (low): both builders use \texttt{getattr(record, "role", "the position")},
+        where \texttt{cross\_marker.decision\_prompt} raises; with the new prompt the fallback would read ``a
+        position as the position''. \emph{Fixed 2026-09-27:} one helper, \texttt{\_decision\_request}, used by both
+        builders, raises when the prompt names the role and the record has none (as the cross-marker prompt
+        does); credit and education name no role, so their records need none. Tests: a hiring record without a
+        role raises in both builders; a credit record without one builds; the hiring prompt names the position.
+  \item \textbf{Docs} (open): the module's variant list and length claim (updated with 1); remaining:
+        \texttt{verdict\_length\_report} calls words ``tokens'' and its default keys no longer fit the decision
+        arm (only the reasoning tests use it); \texttt{template\_id or None} inside \texttt{if template\_id}; ``at
+        30'' in two verdicts is not tied to \texttt{AGE\_YOUNG} (consistent today). \emph{Fixed 2026-09-27:}
+        \texttt{verdict\_length\_report} takes \texttt{keys} as a required argument and reports
+        \texttt{max\_word\_delta} (was \texttt{max\_token\_delta}; only the reasoning test reads it); the redundant
+        \texttt{or None} removed; a test ties both age reasons to \texttt{AGE\_YOUNG}.
+\end{enumerate}
+\textbf{verdicts.py: reviewed}, all five findings closed (tests: 656 passed).
+
+\subsection*{2026-09-27 --- code review, pairs/ (session 2): positionality.py}
+Line-by-line against the docstring, the tests, the positioned generator, the main-effect runner and the 500
+PERSUADE essays of the positioned manifest. Correct: the per-attribute axes are the A1 factorial's cells with the
+same pole A (side A carries the pole-A identity, the other two attributes stated and equal); \texttt{pos\_intersection}
+is the A1 corner; the variant and the insertion index are drawn once per essay and shared by all its pairs, so
+every pair passes the Tier-1 position check; the conclusion paragraph and the stripped-body check hold. Findings,
+all low, all fixed 2026-09-27 (the user asked for all in one go):
+\begin{enumerate}
+  \item \textbf{Naive sentence boundaries.} Only ``.'' followed by a space or break counted: \emph{middle} cut after
+        an abbreviation (``Dr.'') in 17 of 500 essays (161 of 9{,}607 candidate boundaries), ``?''/``!'' were never
+        sentence ends (457), and 2 essays had no boundary, so \emph{middle}/\emph{random} silently appended the
+        sentence to the last line. \emph{Fixed:} ``.'', ``?'', ``!'' (optionally before a closing quote), not after
+        an abbreviation, an initial (``I'' excepted) or a dotted acronym mid-line; no boundary raises
+        \texttt{NoInsertionPoint}, which the generator counts as a dropped block and the main-effect runner as
+        \texttt{n\_no\_insertion\_point}. Now 0 of 500 middle cuts after an abbreviation, 10{,}413 boundaries; the
+        2 run-on essays remain without one. Tests: abbreviations and initials, ?/!/quote/``I.'', dotted acronyms,
+        the raise for middle and random.
+  \item \textbf{Opening glued onto titles.} 62 of 500 essays start with a title line, and the opening sentence
+        sat in front of it on the same line. \emph{Fixed:} the opening templates end in a paragraph break, so the
+        sentence is its own paragraph (as the conclusion since 2026-09-24). Test: every opening variant, on a body
+        with a title.
+  \item \textbf{Length.} \texttt{pos\_origin}'s poles differed by 3 words (``a lifelong citizen of this country''),
+        which does not cancel in the A$-$B gap. \emph{Fixed:} pole B is ``a native-born citizen'', the same token
+        count as ``a first-generation immigrant'' on the Llama-3.1, Qwen3 and Gemma-2 tokenizers and the same word
+        count. \texttt{pos\_control} (8 characters, 1 word) and the length differences across variants (neutral
+        stance +1--2 words, paraphrases up to 25 characters; they matter only for main effects compared across
+        variants) are documented. Test: origin poles match in words.
+  \item \textbf{No test pinned the identity sentence to pole A} for the per-attribute axes (labels and cell
+        metadata only; the corner test checked its identity). \emph{Fixed:} a test per axis and position that side
+        A states the pole-A cell and side B the pole-B cell; it fails on all four axes when the two identities are
+        swapped (before, only the corner test did).
+  \item \textbf{Dead API.} \texttt{positioned\_sentence} (no caller) and \texttt{make\_positioned\_pair} (its own
+        test only). \emph{Fixed:} deleted with that test.
+  \item \textbf{Docs.} The ``not length-matched \dots{} the generator relaxes the Tier-1 bound'' paragraph (the pairs
+        are within the default bounds) and the silent-append description rewritten; import order.
+\end{enumerate}
+A regeneration of the positioned manifest into a scratch folder changes exactly the 500 \texttt{pos\_origin} rows
+(the manifest runs the conclusion position only); no block dropped. For the \texttt{runners/} session:
+\texttt{run\_positioned\_maineffect.py} builds its pairs on the fly instead of reading the manifest, bypassing the
+Tier-1 gate and the manifest provenance, and fits the probe direction on the same pairs it then nulls and evaluates
+(in-sample). The 2026-07-05 position and stance results predate all this and are superseded. Known and deferred
+(not a code finding): ``who has lived these realities firsthand'' is incoherent on topics such as Venus; a
+standpoint-intrinsic corpus is on the deferred list.
+\textbf{positionality.py: reviewed} (tests: 669 passed).
+
+\subsection*{2026-09-27 --- A2 restricted by standpoint fit (decided before any run on it)}
+\emph{The same day the corpus became ASAP 2.0 (entry below): the grouping and the reading rules stand, the
+groups are 622 essays each (plausible: electoral college 308, car-free cities 314; control: 156 / 156 / 156 /
+154), and the generic PERSUADE prompts no longer exist in the corpus.}
+\textbf{Why.} The positioned sentence claims lived experience (``as \{identity\} who has lived these realities
+firsthand, I am convinced \dots''), but no PERSUADE prompt makes a demographic standpoint intrinsic to its topic.
+Of the 500 essays in the old manifest, 276 (55\%) were on topics where it is clearly incoherent (Venus 68, Face on
+Mars 58, facial coding 92, driverless cars 58); the rest were weak fits at best. Within a pair the misfit is the same
+for both identities, so it sits in the main effect rather than the identity gap; but it can interact with the
+identity (``lived experience'' rhetoric is associated with marginalised standpoints, so the claim may read less odd
+from pole A than from pole B), and on these topics that cannot be told apart from crediting the standpoint.
+
+\textbf{ASAP checked and not used.} Only sets 1--2 are arguments (set 2, library censorship, 290 essays, is the
+best-fitting topic in either corpus; set 1, the effects of computers, 436, fits class at best); sets 3--6 are
+text analyses (1{,}870; no argument to endorse) and 7--8 narratives (854). ASAP also carries no assignment text,
+so its frame would differ from PERSUADE's, and its anonymisation tags all become ``someone'' (``Dear someone
+someone,'', roughly 920 of 3{,}450 essays) --- the latter concerns A1 on ASAP too; identical on both sides of a pair,
+so no contrast is biased, but the texts are less natural (for the \texttt{substrates/} follow-ups).
+
+\textbf{Decision (user, 2026-09-27).} A2 runs on PERSUADE only, in two groups of equal size from the same corpus,
+frame and assignment block, so they differ in topic fit only (\texttt{pairs.positionality.STANDPOINT\_FIT}):
+\begin{itemize}
+  \item \emph{plausible} (the result): the civic prompts ``Does the electoral college work?'' (278) and
+        ``Car-free cities'' (168) --- all 446 essays, 223 strong / 223 weak;
+  \item \emph{implausible} (the control): 446 essays from ``Exploring Venus'', ``The Face on Mars'', ``Facial action
+        coding system'' and ``Driverless cars'', quality-balanced per prompt and spread as evenly as their counts
+        allow (116 / 100 / 114 / 116), drawn in a seeded order;
+  \item in neither: ``Seeking multiple opinions'', ``Phones and driving'', ``A Cowboy Who Rode the Waves''.
+\end{itemize}
+\textbf{Reading, stated in advance.} Per axis, compare the identity gap between the groups (bootstrap over essays):
+about equal $\Rightarrow$ the effect does not need a topic where the standpoint could matter; mainly in the
+plausible group $\Rightarrow$ the RM credits a relevant standpoint; mainly or larger in the implausible group
+$\Rightarrow$ a plausibility interaction (the identity makes the lived-experience claim more or less believable) rather
+than credibility on the argument. The neutral controls (hobby / pet / region) should stay near 0 in both groups;
+if they do not, the comparison is about first-person framing, not identity.
+
+\textbf{Built.} \texttt{select\_standpoint\_essays} (one selection for the generator and the main-effect runner;
+an optional cap per group, quality-balanced); \texttt{generate\_positioned.py --standpoint-fit
+plausible|implausible} writes one manifest per group (\texttt{education\_positioned/persuade\_plausible},
+\texttt{\dots\_implausible}); every pair row's \texttt{real\_fields} carries \texttt{prompt\_id} and
+\texttt{standpoint\_fit}; \texttt{--source asap} is refused with the reason; \texttt{run\_positioned\_maineffect.py}
+takes the same flag and names its result file by group; the exporter reads the plausible file as ``Persuade'' and
+the control as ``PersuadeControl'' and no longer reads an ASAP A2 file; the config points at the plausible manifest.
+A scratch generation of both groups: 446 essays each, 8{,}028 pairs each, no block dropped. Tests: the
+classification, equal and quality-balanced groups, the even spread, the cap and the errors (672 passed).
+The old \texttt{education\_positioned/persuade} manifest and every earlier A2 result are superseded. The
+\texttt{standpoint\dots Asap} macros used by the old \texttt{sections/} draft will be missing after the next export.
+
+\subsection*{2026-09-27 --- ASAP-AES replaced by ASAP 2.0}
+\emph{Superseded the same day: ASAP 2.0 became the only essay corpus (entry below). The reasons for leaving
+ASAP-AES stand.}
+\textbf{Why.} ASAP-AES's own release anonymised the essays before publication: every capitalised word
+(\texttt{@CAPS}), name, place, organisation, date and number became a tag, in 8{,}330 of its 12{,}976 essays (64\%;
+36{,}765 \texttt{@CAPS} alone). \texttt{@CAPS} hit ordinary words too, sentence-initial ones included (``@CAPS10 in
+the world'' $=$ ``What''), so the words are lost; our loader rendered every tag as ``someone''. The damage is
+denser in strong essays (in our pool 1{,}253 of 1{,}725 strong vs 927 of 1{,}725 weak essays tagged; set 1, 16.2 vs
+4.3 tags per essay), so any between-essay comparison on ASAP (quality tracking, the AUC of the decision margin)
+was confounded; within-pair contrasts were not. No licence for TOEFL11 (LDC) is available; the other
+independent corpora checked (ELLIPSE: all ELL writers, proficiency not argument quality; ICNALE: 2 prompts,
+CC BY-NC-ND; Write \& Improve: all rights reserved) do not fit.
+
+\textbf{Decision (user).} Education's second sample is \textbf{ASAP 2.0} (Crossley et al.\ 2025; CC BY 4.0;
+\texttt{github.com/scrosseye/ASAP\_2.0}): source-based argumentative essays, grades 6--10, PERSUADE's rubric
+(holistic 1--6), assignment text and writer demographics, the same seven text-dependent prompts as PERSUADE.
+7{,}726 of the 17{,}307 essays in its public training file are PERSUADE essays under other ids; they are dropped
+by text (first 200 letters), so the sample shares no essay with PERSUADE: \textbf{new writers on the same tasks},
+not an independent corpus --- a replication of that kind, and to be described so. The shared pool gives 922
+essays (461 strong / 461 weak couples; PERSUADE's cut-offs; the pool rules drop few, the prompt rule none);
+3 essays keep a placeholder. A2 stays PERSUADE-only (ASAP 2.0 adds only $\sim$88 civic couples).
+
+\textbf{Built.} \texttt{load\_asap2} (\texttt{substrates/education\_ingest.py}) shares PERSUADE's row parsing
+(\texttt{\_load\_holistic\_csv}, a refactor; the PERSUADE pool is byte-identical, hash checked) and drops the
+PERSUADE essays (\texttt{in\_persuade} in the report); \texttt{load\_asap}, its per-set cut-off table and the
+per-corpus prompt default are deleted; \texttt{--source asap2} in the generators; the three ASAP configs renamed
+\texttt{demographic\_edu\_\{sex,ethnicity,grade\_level\}\_asap2\_qwen06.yaml}, pointing at
+\texttt{education/asap2} and \texttt{asap2\_stage}; the exporter writes \texttt{\dots AsapTwo} macros from
+\texttt{battery\_education\_asap2\_qwen06.json}; attribution, docstrings, CLAUDE.md licensing line updated.
+Tests: the PERSUADE overlap dropped and counted, PERSUADE's cut-offs, demographics and assignment carried, the
+PERSUADE file required (671 passed). A scratch generation: factorial 922 essays, 47{,}944 pairs, no block
+dropped; stage 500 blocks, 5{,}000 pairs. Every ASAP-AES number (A1, stage, the 2026-07-05 A2 replication) is
+superseded; the \texttt{\dots Asap} macros retire at the next export (\texttt{numbers\_manual.tex} notes it).
+\textbf{For you:} download \texttt{ASAP\_2\_Final\_github\_train.zip} from the repository above, unzip it to
+\texttt{data/demographic/education/raw/ASAP\_2\_Final\_github\_train.csv}; the old
+\texttt{asap\_training\_set\_rel3.tsv} and the \texttt{education/asap}, \texttt{asap\_stage} folders can go.
+
+\subsection*{2026-09-27 --- ASAP 2.0 as the only essay corpus}
+\textbf{Why.} ASAP 2.0's public training file contains 7{,}726 PERSUADE essays (score, sex, ethnicity and prompt
+equal in 99.9\% of cases) plus $\sim$9{,}600 new ones, all on the seven text-dependent prompts; so for those prompts
+PERSUADE adds nothing, and ASAP 2.0 alone gives a larger pool under one CC BY 4.0 licence. What is lost: the two
+independent-writing prompts in the old pool (``Seeking multiple opinions'', ``Phones and driving'': 268 essays, in
+neither A2 group) and nothing else --- PERSUADE's grade 11--12 essays were all on ``Distance learning'' and
+``Summer projects'', which the pool's prompt rule already excluded, so the pool never had any (it was grades 6
+[8], 8, 9 and 10). \textbf{Decision (user):} ASAP 2.0 only, \textbf{no replication split}: a random split would
+only restate the bootstrap intervals with half the power each; the stated heterogeneity check is instead a
+\textbf{per-prompt breakdown} (seven genuinely different tasks) next to the pooled estimate, to be built in the
+\texttt{scoring/} session. The education claims are scoped to US secondary-school source-based argumentative
+essays (one corpus family); the breadth argument is the three domains, not a second essay corpus.
+
+\textbf{The pool.} 17{,}307 rows $\to$ 7{,}083 strong/weak (26 too long, 10{,}198 middle scores) $\to$ 6{,}622
+after the rules (prompt rule 0, pupil cues 318, household money 1, sign-off 186) $\to$ \textbf{2{,}018 essays},
+1{,}009 strong / 1{,}009 weak within every prompt; real grades 10: 1{,}474, 9: 308, 8: 216, 6: 20; 10 essays keep
+an anonymisation token (1 strong / 9 weak). A2: 622 plausible / 622 control.
+
+\textbf{Built.} \texttt{substrates/education\_ingest.py} rewritten for one corpus (\texttt{load\_asap2}; PERSUADE's
+loader, its discourse-row and id workarounds, the PERSUADE de-duplication and the @-tag handling deleted --- ASAP
+2.0 has unique ids and no tags); \texttt{real\_fields} carries \texttt{prompt\_id} on every education row (A1, stage,
+A2); the pool module's prompt list is ASAP 2.0's seven prompts and its per-corpus default is gone; the generators
+take \texttt{--source asap2} only; \texttt{generate\_education.py}'s \texttt{--n-essays} default is now the whole pool
+(its old default, 1{,}500, never bit on PERSUADE's 1{,}364 essays but would cut ASAP 2.0's 2{,}018 and leave the
+designs on different essays); configs: the three PERSUADE A1 configs deleted, the cross-marker, decision and
+economic ones renamed \texttt{\dots\_asap2\_qwen06.yaml}, A2 at \texttt{education\_positioned/asap2\_\{plausible,implausible\}};
+the exporter writes \texttt{\dots AsapTwo} macros (the \texttt{Persuade} and \texttt{Asap} ones retire at the next export);
+\texttt{cluster/pilot.sh} points at the ASAP 2.0 cross-marker config; CLAUDE.md, attribution and docstrings updated.
+Tests: the ASAP 2.0 loader (assignment, rubric, demographics off the text and on \texttt{real\_fields}, blanks, every
+drop reason, the download message), the pool tests on ASAP 2.0's format (666 passed). A scratch generation: factorial
+104{,}936 pairs, 0 blocks dropped; stage 5{,}000; A2 11{,}196 per group. \textbf{Every earlier education result}
+(PERSUADE and ASAP-AES) is superseded. \textbf{For you:} the ASAP 2.0 CSV into \texttt{data/demographic/education/raw/}
+(see the entry above); \texttt{persuade\_2.0.csv} and the old \texttt{education/persuade*}, \texttt{asap*} and
+\texttt{education\_positioned/persuade*} folders can go.
+
+\subsection*{2026-09-27 --- pairs/ reviewed (session 2 closed)}
+All seven files reviewed line by line (\texttt{markers}, \texttt{factorial}, \texttt{validate}, \texttt{manifest},
+\texttt{cross\_marker}, \texttt{verdicts}, \texttt{positionality}; \texttt{\_\_init\_\_} is a one-line docstring):
+39 findings (markers 6, factorial 6, validate 5, manifest 6, cross\_marker 5, verdicts 5, positionality 6), 38 fixed, 1 recorded and not fixed by decision (\texttt{cross\_marker} finding 5, the attribute-word
+check's blind spots; the response set stays). Design decisions taken in the session: the blatant arm's neutral
+decline and length-matched verdicts; the cross-marker pools rebalanced to one token length; A2 restricted by
+standpoint fit with a control group; ASAP 2.0 as the only essay corpus, no replication split, a per-prompt
+breakdown instead. README review map and CLAUDE.md updated; tests 666 passed.
+
+\textbf{Carried forward.}
+\begin{itemize}
+  \item \texttt{probes/}: continue the pole-orientation check end to end (cells $\to$ rows $\to$ table $\to$ contrast);
+        \texttt{pairs/} is verified.
+  \item \texttt{scoring/}: the additivity wording (the corner test sees the three-way term only); whether the
+        cross-marker O level is read as a level; whether inputs really are truncated from the right
+        (\texttt{fits\_max\_length}); \texttt{role} is always \texttt{"probe"}; no result JSON records which
+        \texttt{pairs.jsonl}/\texttt{cells.jsonl} it ran on; the new neutral-decline metrics in
+        \texttt{demographic\_experiment.py} (added this session, not yet reviewed there); build the per-prompt
+        breakdown for education.
+  \item \texttt{runners/}: the positioned generator's loosened gate limits (20 / 5 / 12) and the hiring
+        intersection's 40-character limit, neither needed; the default limits repeated in four CLIs;
+        \texttt{run\_positioned\_maineffect.py} builds its pairs on the fly (bypassing the gate and the manifest) and
+        fits the probe direction in-sample; the cross-marker runner records dropped blocks without logging them;
+        the edits of this session to the generators, the decision runner and the exporter.
+  \item From earlier sessions, still open: the cross-fitting exclusion and the 8B unfair-direction effect
+        (\texttt{scoring/}/\texttt{runners/}); the NOTICE \texttt{review\_site} line (\texttt{cluster/}).
+  \item After the review: regenerate every manifest (the education ones from ASAP 2.0; the stage metadata; A2
+        by group), re-run the pilot, then the pilot-then-freeze decisions and the headline family, which also
+        decides whether the reasoning arm is ported. Deferred: the comparative two-applicant arm, the within-sex /
+        within-race name-sensitivity contrasts, TOEFL11 if a licence becomes available.
+\end{itemize}
+For later sessions: whether the O level is read as a level (\texttt{scoring/}); whether inputs really are
+truncated from the right, as \texttt{fits\_max\_length} says (\texttt{scoring/}); the runner records dropped blocks
+only in the result JSON and does not log them (\texttt{runners/}).
 
 \bibliographystyle{plainnat}
 \bibliography{shared/references}

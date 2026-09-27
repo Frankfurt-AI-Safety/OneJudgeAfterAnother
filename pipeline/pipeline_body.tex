@@ -37,16 +37,16 @@ remaining imbalance on every rendered field is reported next to the chance level
 population (mean total-variation distance over the fields: matched 0.11, random draw 0.15, chance 0.11). The gap
 is the mean per-pair difference with a bootstrap interval.
 
-\todo{Education (grading): \textbf{real essay corpora} held byte-identical --- PERSUADE 2.0 (CC-BY-NC-SA;
-argumentative, holistic 1--6 score) and ASAP-AES (Kaggle 2012 Hewlett) --- loaded as \texttt{EssayRecord}s;
+\todo{Education (grading): \textbf{real essays} held byte-identical --- since 2026-09-27 ASAP 2.0 only (CC BY 4.0;
+source-based argumentative essays, grades 6--10, holistic 1--6 score, seven text-dependent prompts; it contains
+most of the PERSUADE 2.0 essays on those prompts and replaced both PERSUADE and ASAP-AES; pool 2{,}018 essays)
+--- loaded as \texttt{EssayRecord}s;
 the demographic marker is injected only as a header clause (approach A1). The header also carries the
 \textbf{assignment} the essay answers (constant per prompt, identical across a pair), as the hiring header
 carries the target role: most PERSUADE prompts are text-dependent, so without it the model grades an answer
 to a question it cannot see. Paragraph breaks in the essay body are preserved. \texttt{high\_quality} is
 thresholded from the holistic score (strong $=$ top tier / weak $=$ bottom, middle dropped; PERSUADE $\ge5$ /
-$\le2$ on 1--6, ASAP per essay set from an explicit table that leaves at least one score point between the
-classes --- until 2026-09-24 ASAP used nearest-rank terciles, which on its coarse integer scales fell on
-adjacent points in 6 of 8 sets, so ``drop the middle'' did not hold there) --- the
+$\le2$ on 1--6) --- the
 quality ground truth of the cross-marker design's decision accuracy (a strong essay should pass, a weak
 one fail). Strong essays are about 2.2$\times$ longer (length alone predicts the label, AUC 0.98), which
 confounded the retired direct form of \crossinf{} (a strong and a weak essay compared side by side); its
@@ -68,9 +68,9 @@ per-essay dedup, and 6{,}404 after dropping the middle scores (9{,}132) and 58 o
 with pole A the hypothesised penalised level (female, Black, low income), as in credit and hiring. Three
 substrate-specific points.
 \textbf{(i) Two factors share one carrier.} The sex proxy and the ethnicity proxy are both the first name,
-so the proxy encoding is the \citet{haim2024whatsinaname} sex $\times$ ethnicity name grid drawn at a single
-pool index --- index-matched, so a sex or ethnicity swap moves one step in the grid instead of resampling
-two independent names and charging the difference to the axis.
+so the proxy encoding is a \citet{haim2024whatsinaname} sex $\times$ ethnicity name grid: per block one name
+for each (sex, ethnicity) cell, the four drawn independently (as credit and hiring draw their two), so across
+blocks every name meets every other and a per-name effect can be separated from its partners'.
 \textbf{(ii) The explicit clause uses three independent slots and no sex noun}
 (``The student is Black, female, and from a low-income household.''): ``girl'' vs ``young woman'' would make
 the sex wording covary with the writer's age, the error the hiring career-gap proxy made.
@@ -234,14 +234,13 @@ around. Levels, penalised pole first: female/male, 30/50, on parental leave / in
 \end{itemize}
 
 \paragraph{Education (single-axis).}
-\todo{Neutral slot-templated renderer with one \texttt{\{marker\}} slot; sex/age/family-status +
-the sex$\times$age$\times$family intersection; explicit and proxy (name / graduation-year / career-gap)
-encodings; the intersection clause composes the three marginal clauses (enables the additivity test).
-For the education domain (A1, header injected over real essays): \textbf{name} $\to$ sex $+$
-\textbf{ethnicity} (a name grid coded to origin, Haim et al.\ lineage \citep{haim2024whatsinaname}); and
-\textbf{grade\_level} (7th-grade pupil vs final-year university student) as an age/education-stage proxy;
-plus explicit forms. Shared single-axis markers (also usable by credit/CV); the subject noun is
-parameterized (``the applicant'' $\to$ ``the student''). Disability deferred.
+\todo{Neutral slot-templated renderer with one \texttt{\{marker\}} slot. The demographic axes of every
+domain are the three-attribute factorials (\texttt{pairs/factorial.py}); the only single-axis design left is
+the education \textbf{stage} axis (\texttt{pairs/markers.py}): \textbf{grade\_level}, a 6th-grade pupil vs a
+doctoral candidate (explicit = a stated age, proxy = the stated stage), plus the ladder rungs
+\texttt{stage\_<rung>} against the same reference; the subject noun is ``the student''. The earlier
+single-axis sex / age (graduation-year proxy) / family-status (career-gap proxy) / marital-status / ethnicity
+/ intersection markers were deleted on 2026-09-26 (superseded by the factorials). Disability deferred.
 \textbf{Positioned-argument (A2)} variant (\texttt{positionality.py}): instead of a header, inject one
 first-person \emph{standpoint} sentence whose claimed identity is the swapped unit (``as \{a woman / \dots /
 a working-class Black woman\} who has lived these realities firsthand, I am convinced\dots''), grounding the
@@ -268,18 +267,37 @@ necessity: A1's third-person metadata says ``female'', A2's first-person standpo
 is part of the swapped clause, so stripping it still returns the exact body). Appended after a space, it was
 glued onto the essay's last line, and weak essays far more often end mid-sentence (38 vs 5 of 711 per class):
 ``\dots its very hard to study I do not hold this view in the abstract\dots'' --- a run-on mostly on weak
-essays. Essays ending in a sign-off are dropped from the pool (above).}
+essays. Essays ending in a sign-off are dropped from the pool (above). \emph{Revised 2026-09-27:} the
+\emph{opening} sentence is likewise its own paragraph (62 of 500 PERSUADE essays start with a title line, which it
+was glued onto); a sentence end for \emph{middle}/\emph{random} is a period, question or exclamation mark
+(optionally before a closing quote), but not the period of an abbreviation or an initial (the period-only rule
+cut after ``Dr.'' in 17 of 500 essays); an essay with no sentence end is dropped and counted instead of getting
+the sentence appended to its last line (2 of 500); the origin axis's reference pole is ``a native-born citizen'',
+the same length in tokens and words as ``a first-generation immigrant'' (was ``a lifelong citizen of this
+country'', three words longer). \emph{Revised 2026-09-27 (design):} A2 runs in two equally large groups: the civic
+prompts where a standpoint is at least arguable (electoral college, car-free cities; 622 ASAP 2.0 essays, the
+result) and a control group from prompts where it is clearly not (Venus, Face on Mars, facial coding,
+driverless cars); one manifest per group, \texttt{prompt\_id} and \texttt{standpoint\_fit} on every row (working
+notes of that date).}
 
 \subsection{Tier-1 structural validation gate}
-\todo{Per matched pair: (1) exact single-slot difference (strip each marker clause $\to$ byte-identical
-remainders); (2) length parity ($|\Delta\text{char}|,|\Delta\text{token}|$ bounded); (3) readability
-parity ($|\Delta$Flesch$|$ bounded). Over-generate, discard failures, record discard rate in the manifest.
-For credit, a failing pair discards its whole record/template/encoding block so the factorial stays
-balanced (none failed in the current build).}
+\todo{Per matched pair (\texttt{pairs/validate.py}): (1) single-slot difference --- each clause occurs
+exactly once, the two clauses differ, stripping them leaves byte-identical remainders, and both start at the
+same index (identical text before and after the slot; a slot check, not an axis check: a corner pair varies
+three attributes in its one clause); (2) length parity ($|\Delta|$ characters and whitespace words bounded,
+default 12 and 3); (3) readability parity ($|\Delta|$Flesch reading ease of the full texts $\le 8$; on essays it
+cannot come near binding: at most 2.5 on the retired ASAP-AES, under 1 on PERSUADE). Every generator gates block by block: a
+block (factorial record/template/encoding, stage block, positioned essay) with any failing pair is dropped
+whole, so the design stays balanced; nothing is over-generated to replace it; drops are counted per reason
+code in the manifest's discard report. No block has failed in any build (2026-09-26): the largest
+differences anywhere are 8 characters, 3 words and Flesch 6.2.}
 
 \subsection{Manifest, loader, reproducibility}
 \todo{Self-describing JSONL manifest (axis/encoding/template/intersectional cell/provenance); per-RM
-chat-template formatting applied at scoring time; datasets regenerable from seed. Domain registry
+chat-template formatting applied at scoring time; datasets regenerable from seed and code:
+\texttt{manifest.json} records the generator version, the seed, the template hashes and (since 2026-09-26) the
+git commit the generator ran from, with the paths that differed from it; \texttt{spotcheck.csv} is a seeded
+sample for human review, stratified by axis and encoding. Domain registry
 (credit/cv/education) as the single dispatch point --- adding a domain is one \texttt{DomainSpec} entry,
 which also names the domain's axes and marker builder.}
 \paragraph{Credit specifics (2026-09-16).} Besides \texttt{pairs.jsonl} the generator writes
@@ -326,7 +344,8 @@ cosine and nulled metric against the number of records).}
 cells, taken verbatim from \texttt{cells.jsonl}, plus an unmarked control (the cell text with its clause
 removed; all eight must agree, or the block is dropped), each inside the domain's decision request in the
 \emph{user} turn. Five responses per prompt, each with three parallel paraphrases (one drawn per record and
-used for all its cells, templates and encodings): \emph{approve} with merit reasons, \emph{decline} with a
+used for all its cells, templates and encodings; every response of a domain within 2 tokens of one common length, so no
+response type is systematically longer): \emph{approve} with merit reasons, \emph{decline} with a
 neutral reason, \emph{coded} decline with a stereotype-congruent reason that names nothing (credit: income
 stability; hiring: availability; education: doubted authorship), \emph{overt} decline citing the protected
 attributes as categories (``taking the applicant's sex, age and marital status into account''), and
@@ -372,7 +391,9 @@ pupil. Credit markers come from the factorial (no proxy for marital status). Its
 reason openly and every item shows only the protected pole, so it measures the minimum --- does the model at
 least penalise open discrimination? --- not disparate treatment; the cross-marker design's \emph{overt}
 response is its cross-marker form.
-\todo{Authored fair/discriminatory/neutral/evasive verdicts (length-matched); the correctness$\times$conclusion
+\todo{Authored fair/discriminatory/neutral/neutral-decline/evasive verdicts, every one within 2 tokens of the
+evasive verdict; discriminatory vs neutral decline holds the decision fixed and isolates acceptance of the
+attribute reason (2026-09-27); the correctness$\times$conclusion
 reasoning 2$\times$2 with paraphrase pools + claim types + a non-demographic commute control.
 \outdated{The reasoning 2$\times$2 is still hiring-only and its ``experience'' claim type still reads the
 synthetic years-of-experience field (``several years'' on real biographies).}}
