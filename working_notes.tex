@@ -187,7 +187,7 @@ against the current releases.}
   \item \textbf{Pilot-then-freeze decisions postponed until the code review is done (decided 2026-09-26).} The pilot
         ran on 2026-09-25/26 (log entry of that date), but \texttt{probe\_records}, $n$ per group and the headline
         family ($m$, $\delta$) are \emph{not} fixed from it: only \texttt{substrates/} and (since 2026-09-27)
-        \texttt{pairs/} have been reviewed line by line, and a bug in \texttt{probes/}, \texttt{scoring/} or
+        \texttt{pairs/} and \texttt{probes/} have been reviewed line by line, and a bug in \texttt{scoring/} or
         \texttt{runners/} would feed
         straight into the numbers these decisions rest on. Order: finish the review, re-run the pilot on the
         reviewed code (\texttt{cluster/pilot.sh}, same pre-stated rules), then decide. The configs keep their
@@ -2428,6 +2428,275 @@ breakdown instead. README review map and CLAUDE.md updated; tests 666 passed.
 For later sessions: whether the O level is read as a level (\texttt{scoring/}); whether inputs really are
 truncated from the right, as \texttt{fits\_max\_length} says (\texttt{scoring/}); the runner records dropped blocks
 only in the result JSON and does not log them (\texttt{runners/}).
+
+\subsection*{2026-09-27 --- code review, probes/ (session 3): heads.py}
+\texttt{probes/} is six files, 1{,}500 lines (the README's 1{,}275 is stale): \texttt{heads} (state $\to$ score),
+\texttt{probe} (the forward pass, rewards, null-space projection, the direct-arm direction, the load-time
+score-path check), \texttt{embedding\_cache}, \texttt{cross\_marker\_directions} (the mechanism layer's own
+directions, cross-fitting), \texttt{erasure} (LEACE, recoverability). Review order: that one.
+\textbf{Pole orientation, the \texttt{probes/} part:} nulling is sign-invariant (projecting out $u$ or $-u$ is the
+same, and so is \texttt{did\_share}), so a flipped pole can never change a nulled reward; it would show only in the
+signed diagnostics (cosines between directions, $w\cdot u$, \texttt{separation}). Both direction sources point to
+pole A: \texttt{ContrastivePair(positive = side A)} (\texttt{scoring/pair\_dataset.py}) and
+\texttt{axis\_pairs} $=$ (pole-A cell, pole-B cell).
+
+\texttt{heads.py}: the arithmetic is right --- the linear head is the model's own layer; the gated (QRM) head
+matches our \texttt{Gemma2ForQuantileSequenceClassification.forward} step for step (regression and quantile mean in
+the model dtype, gate product in float32, gates upcast exactly); \texttt{mean\_rows} averages the right rows; the
+offline head uses the same kernels; every runner loads through \texttt{verify\_score\_path}. Four findings:
+\begin{itemize}
+  \item \textbf{(1, low, fixed) Docstring.} It named the gate pathway for the direct arms (the gate never sees the
+        marker) and the cross-marker design (it does, \texttt{gate\_fixed}), but not the blatant decision arm, where
+        the applicant is in the user turn and the gate sees the marker; it now says so, with the reason it is
+        harmless there (only same-prompt comparisons, one gate). It also said the pipeline's reward
+        \emph{equals} the model's score. It does not, bit for bit: the HF heads apply \texttt{score} to the whole
+        $[\mathrm{batch},\mathrm{seq},d]$ tensor and then gather, the pipeline to the gathered states, and GEMMs of
+        different shape can round differently in bf16. Now: agrees within \texttt{verify\_score\_path}'s tolerance,
+        and baseline and nulled rewards share one path.
+  \item \textbf{(2, low, fixed) Gate shape.} The gated head checked the number of gate rows only, the offline
+        head nothing; a $[n,1]$ gate tensor would have broadcast against the $[n,\text{objectives}]$ expected
+        rewards and scored $g\cdot\sum_k$ instead of $\sum_k g_k\cdot$, silently. Both now require
+        $(n,\text{objectives})$. No live caller passed a wrong shape (gates only come from the forward pass).
+  \item \textbf{(3, low, fixed) Tests.} \texttt{heads.py} had no tests of its own; the bias branch of the linear
+        head (offline $=$ online) was untested, since no test model and none of the eleven RMs has a score bias.
+        New \texttt{tests/test\_heads.py}: a biased linear head online $=$ offline $=$ the layer, the effective
+        weights, the digest, the gate-shape guard online and offline.
+  \item \textbf{(4, info, not fixed)} The linear head's digest hashes the weight, not the bias, and the gate
+        digest the gating state dict, not its temperature (a config value). Harmless for the states (a bias
+        never changes one; every metric is a difference); what the cache fingerprint claims to cover is taken up
+        with \texttt{embedding\_cache.py}. A redundant \texttt{[:16]} on the linear digest removed (same value).
+\end{itemize}
+Carried forward: to \texttt{probe.py}, the \texttt{get\_score\_head} fallback (any one-output linear layer) and the
+\texttt{verify\_score\_path} tolerance; to \texttt{runners/}, whether the decision arm should report a
+gate-fixed number for QRM (documented only, for now).
+\textbf{heads.py: reviewed}.
+
+\subsection*{2026-09-27 --- code review, probes/: probe.py}
+Right as it was: the projection $h-\alpha(hB^\top)B$ for an orthonormal $B$, in float32, the head applied after;
+baseline and nulled rewards through one path; cached and uncached states identical (bf16 $\to$ float32 is
+exact); \texttt{build\_probe\_direction} $=$ mean(positive) $-$ mean(negative) with positive $=$ side A, so the
+direct-arm direction points to pole A (pole orientation \checkmark); \texttt{verify\_score\_path} scores two
+conversations of different length in one batch, so a wrong pooling, head or padding side fails at load. Six
+findings, all fixed (\texttt{probe.py} 782 $\to$ 554 lines):
+\begin{itemize}
+  \item \textbf{(1, medium) Inputs were truncated silently.} \texttt{tokenize\_inputs} cut every text at
+        \texttt{max\_length}, without a check and without pinning the truncation side; only the cross-marker
+        runner filtered long blocks (\texttt{fits\_max\_length}), the direct arms did not. A truncated pair is
+        not a matched pair: its two sides differ in length by their markers, so they are cut at different points
+        of the text, and the pooled state is no longer the end of the conversation (under a left truncation side,
+        the header with the marker would go). The last check (longest education input 1{,}489 of 2{,}048 tokens)
+        predates ASAP 2.0, A2's inserted sentence and the verdict arms. Now an over-long input raises
+        \texttt{InputTooLong} (count, longest, \texttt{max\_length}); nothing is ever truncated. This answers the
+        carried-forward question ``are inputs really truncated from the right'': they are no longer truncated at
+        all. The cache key keeps \texttt{max\_length}, so existing caches stay valid.
+  \item \textbf{(2, medium, latent) \texttt{gram\_schmidt} broke on a repeated direction.} One pass and an
+        absolute tolerance ($10^{-8}$): a rescaled copy's rounding residue ($\sim10^{-7}$) was normalised into a
+        second ``basis'' row at cosine $-0.92$ to the first, and the projection formula, which assumes an
+        orthonormal basis, then barely nulled: for $[u,3u]$, 3.54 of 3.83 of the mean $|h\cdot u|$ remained; for
+        $[u,1.0001u]$, 0.42. Not triggered by any current basis (the only multi-row one, \texttt{null\_direct:joint},
+        stacks distinct axis directions), but joint nulling is where related directions get stacked. Now two
+        passes and a relative tolerance ($10^{-5}$ of the vector's norm; a genuine near-duplicate at cosine
+        0.99999 keeps a residual of $4.5\times10^{-3}$). A single direction is normalised bit-identically as
+        before; the cross-marker golden file is unchanged.
+  \item \textbf{(3, medium, memory) Every layer's states were kept.} The forward pass asked for
+        \texttt{output\_hidden\_states} and used only the last: for the 70B models at batch 8 on 1{,}500-token texts,
+        about 16\,GB of extra activations on two 80\,GB GPUs with $\sim$19\,GB free after the weights --- an OOM risk
+        in the education arms. It now reads \texttt{last\_hidden\_state}, the tensor the models' own heads read; the
+        same tensor as \texttt{hidden\_states[-1]} (checked on Llama, Qwen3 and Gemma-2 under transformers 5.17;
+        \texttt{verify\_score\_path} still guards the cluster's 4.57.6). The cache fingerprint is unchanged.
+  \item \textbf{(4, low) Dead code removed:} \texttt{project\_onto\_null}, \texttt{clean\_probe} and the two
+        \texttt{clean\_probe\_*\_with\_correctness} helpers (no caller), \texttt{get\_rewards\_with\_nulling}
+        (imported, never called; its no-probe branch bypassed the pipeline path and the cache), and three stale
+        MLX comments.
+  \item \textbf{(5, low) Docstrings.} The module docstring described only difference-of-means; the probe
+        accuracy is in-sample at the midpoint threshold, not ``at the optimal threshold''; \texttt{separation}
+        equals \texttt{probe\_raw\_norm} by construction ($\geq0$); the \texttt{device} arguments are ignored (the
+        loader places the model). Removing \texttt{device} from the signatures touches about 12 runner call sites
+        and is carried to \texttt{runners/}.
+  \item \textbf{(6, low)} The (prompt, response) tuple branch of \texttt{tokenize\_inputs} did not pass
+        \texttt{add\_special\_tokens}; both branches now do (no current model uses tuples, and the value is the
+        same).
+  \item \textbf{Info, no change:} \texttt{verify\_score\_path}'s tolerance (0.02 $+$ 2\%) is fine, a wrong pooling
+        misses by far more; the \texttt{get\_score\_head} fallback (any one-output linear layer) only matters for
+        an unknown architecture, and a wrong pick fails verification.
+\end{itemize}
+New \texttt{tests/test\_probe.py} (the basis on rescaled, near-duplicate and nearly dependent inputs, the
+final-layer read without all layers, both tokenizer formats without truncation; the basis and forward-pass tests
+fail on the previous code); \texttt{test\_embedding\_cache.py} adapted (it relied on truncation) plus a refusal
+test. Tests 685 passed. Carried forward: to \texttt{runners/}, the \texttt{device} arguments; to the pilot re-run,
+any \texttt{InputTooLong} is a record to select out, not a reason to truncate.
+\textbf{probe.py: reviewed}.
+
+\subsection*{2026-09-27 --- code review, probes/: embedding\_cache.py}
+Right as it was: SHA-256 keys over (\texttt{max\_length}, text); a directory named by the fingerprint's digest
+refuses another fingerprint; shards written atomically (a temporary file never matches \texttt{shard-*.pt});
+each process writes only its own shards (safe on PFSS); the first computation of a key wins; bf16 storage and
+float32 reads are exact, and cached equals uncached bit for bit; the \texttt{revision} field really is the Hub
+commit (checked), so a changed config or gate temperature always comes with a new fingerprint. Five findings,
+all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium) A crashed run kept none of its work.} The comment said a shard is written every
+        4{,}096 new states ``so a crashed job keeps most of its work'', but \texttt{probe.\_embed} ran every missing
+        text of a call through the model before the one write, and the cross-marker runner embeds a whole
+        encoding per call (hours on the 8B). Now the texts go through in chunks of 4{,}096 rounded up to whole
+        batches, a shard after each; the batches are those of an unchunked pass, so the states are the same bits
+        (tested), and a killed run's resubmission embeds only what is left (tested with a forward pass that fails
+        on the second chunk).
+  \item \textbf{(2, low; decided: extend the fingerprint) The fingerprint covered less than claimed.} The
+        docstring said ``config'' (four fields; the revision pins the rest) and left out the environment:
+        device and GPU, attention implementation, library versions --- the device was handled by hand (``clear
+        the cache before the cluster phase''). A state computed elsewhere differs at least at bf16 noise level, and
+        the cache would have served it as the same. The fingerprint now carries the device type, the GPU name
+        (the processor architecture on CPU/MPS), the attention implementation and the torch and transformers
+        versions; \texttt{add\_special\_tokens} is always recorded, and the pooling wording now names
+        \texttt{last\_hidden\_state}. This invalidates every earlier cache once, the pilot's on PFSS included; its
+        texts are mostly stale anyway (ASAP 2.0, rebalanced response pools, A2 groups), and the manual rule in
+        CLAUDE.md and the cluster runbook is replaced.
+  \item \textbf{(3, low) \texttt{put} did not check keys against state rows}; a mismatch would have shifted every
+        later row of the shard onto another text, on disk. It now raises. \texttt{\_\_len\_\_} no longer counts a
+        pending key twice (logging only).
+  \item \textbf{(4, low) Opening a cache read all of it.} Every \texttt{attach} loaded every shard of the model
+        (all domains, all arms) into memory. Shards are now memory-mapped (torch $\geq$ 2.1; the cluster has 2.3),
+        so a run reads only the states it uses. The gain is small at today's sizes: the cluster runbook gives
+        under 1\,GB per model, so the $\sim$16\,GB I estimated in the review assumed far more texts than there are.
+  \item \textbf{(5, info; decided: keep, move, label) The offline API is test-only.} \texttt{open\_cache},
+        \texttt{offline\_rewards} and the lookups have no runner caller; the docstring claimed the pilot's
+        probe-size, seed and bootstrap studies ``need no GPU at all'', but \texttt{run\_probe\_curve.py} loads the
+        model and uses cache hits. The code stays, moved to the end of the file under a comment saying it is only
+        needed for local testing; \texttt{lookup}, \texttt{lookup\_gates}, \texttt{load\_head} and
+        \texttt{save\_head} became module functions to sit there (tests adapted), and \texttt{heads.score\_saved}
+        says the same.
+\end{itemize}
+Tests 689 passed (four new in \texttt{test\_embedding\_cache.py}: chunked $=$ unchunked, a crashed run's chunks
+survive, the key/row guard, the environment in the fingerprint). \textbf{For the user:} the old cache
+directories (local \texttt{artifacts/embedding\_cache}, \texttt{\$PFSS/embedding\_cache}) are orphaned and can be
+deleted. \textbf{embedding\_cache.py: reviewed}.
+
+\subsection*{2026-09-27 --- code review, probes/: cross\_marker\_directions.py}
+Right as it was: the $\Delta$DiD identity (nulling $u$ changes each reward by $-(w\cdot u)(h\cdot u)$, hence
+$D(A)-D(B)$ by $-(w\cdot u)(\Delta_{\text{int}}\cdot u)$); the contrasts \texttt{\_terms} builds (interaction
+$=(A,\text{approve})-(A,\text{decline})-(B,\text{approve})+(B,\text{decline})$, prompt $=$ A-cell $-$ B-cell per
+response, unfair $=$ overt $-$ decline in every cell and the control); per-record averaging over complete units;
+cross-fitting (quality-stratified seeded folds, each fold nulled only with the direction fitted on the others,
+the direct rows and the $\alpha$-sweep included); NaN geometry for degenerate directions; summing states before
+subtracting costs far less than the states' own bf16 resolution. \textbf{Pole orientation, the cross-marker
+half \checkmark:} the metrics' D-disparity is $\sum x\,M/4$ $=$ mean over pole-A cells $-$ mean over pole-B cells,
+which is $\Delta_{\text{int}}$ averaged over the four pairs; \texttt{w$\cdot\Delta_{\text{int}}$} reproduces the
+reported disparity, and the synthetic test recovers the planted signs. Cells $\to$ states $\to\Delta_{\text{int}}\to$
+reported disparity keeps the sign (negative $=$ pole A declined more); what remains, how the exported tables read
+it, is \texttt{scoring/}'s. Three findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium) The reliability ceiling was on the wrong scale.} Cosines between directions were
+        to be read against the split-half cosine, which measures two \emph{half}-sample fits, while the
+        directions compared are fitted on all records. With per-record contrast $=$ signal $+$ independent noise,
+        a full fit's reliability is the Spearman--Brown step-up $2\rho/(1+\rho)$, and the cosine between two
+        directions is at most $\sqrt{\mathrm{rel}_a\,\mathrm{rel}_b}$. Example from the ``Directions'' table of 2026-09-24
+        (data headroom per arm): a proxy interaction direction at split-half 0.6 has reliability 0.75, and its ceiling
+        against a direct direction at 0.98 is $\approx0.86$, not 0.6 --- a cosine of 0.7 would have read as ``above
+        the ceiling''. That table's split-half values are the raw ones and stay as they are (they are also the
+        pilot rule's, where the notes already call them conservative). New \texttt{full\_sample\_reliability}
+        and \texttt{cosine\_ceiling}; the runner's geometry now reports \texttt{reliability} for every direction
+        (the direct ones from their probe records, passed into \texttt{score\_encoding}) and a
+        \texttt{cosine\_ceiling} matrix beside the raw \texttt{split\_half\_cosine}; the printed summary shows each
+        cosine as cosine/ceiling. Tests on synthetic signal $+$ noise: the stepped-up value predicts how two
+        independent full fits agree (within 0.03, where the raw split-half is lower), and two fits of one signal
+        reach the ceiling. The golden file gained the two fields; no pinned value changed (checked field by field).
+  \item \textbf{(2, low) Docstring.} ``\texttt{unfair} (one per domain)'' $\to$ one per encoding; the identity is
+        stated with $\alpha$ and for a linear head (approximate for QRM, whose geometry uses the mean effective
+        head); each direction's orientation is named (prompt and interaction to pole A, unfair to the overt
+        decline).
+  \item \textbf{(3, low) The identity was not tested on real rewards.} New test on the tiny model in float32:
+        for sex, age and the intersection, nulling the direct direction at $\alpha\in\{0.5,1\}$ moves the
+        reward-based D-disparity by $-\alpha(w\cdot u)(\Delta_{\text{int}}\cdot u)$ within $10^{-5}$, and
+        \texttt{did\_share} equals the fraction removed.
+  \item \textbf{Info, no change:} a record id missing from the state index raises a bare \texttt{KeyError}
+        (the runner always passes ids from the rows); \texttt{fold\_assignment} deals both quality groups from
+        fold 0, so low folds can hold up to two more records --- changing it would move every cross-fitted
+        number for no real gain.
+\end{itemize}
+Tests 693 passed. \textbf{cross\_marker\_directions.py: reviewed}.
+
+\subsection*{2026-09-27 --- code review, probes/: erasure.py}
+Right as it was: LEACE takes the 0/1 label as a one-column concept (checked for int, float and bool labels: a
+rank-1 eraser each); eraser and difference-of-means direction are fitted on the training split only; both
+probes are trained on erased training states and scored on erased held-out ones; standardising after erasure
+is affine and cannot reintroduce linear information; the direction is \texttt{build\_probe\_direction}'s formula.
+Three findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium) The verdict had no uncertainty.} ``MLP after LEACE $\approx$ chance $\Rightarrow$
+        low-complexity'' compares an accuracy with chance, but only point accuracies were returned (the notes'
+        ``$\pm$0.07'' was a hand estimate). In the reasoning arm an applicant contributes four correlated held-out
+        states, so even a binomial interval would be too narrow. \texttt{probe\_recoverability} now returns 95\%
+        cluster-bootstrap intervals (\texttt{scoring/intervals}, the convention of every other arm) for both
+        accuracies, the chance baseline and accuracy $-$ chance, clustered by \texttt{groups\_ev};
+        \texttt{run\_reasoning\_erasure.py} passes the applicant and prints MLP $-$ chance with its interval;
+        the scrub check has one state per record and needs no groups. \textbf{Reading rule, one-sided:} the
+        baseline is the majority-class share ($\geq0.5$), so a probe at chance sits at or \emph{below} it (after
+        LEACE on synthetic data: linear $-$ chance $=-0.02$ [$-0.16$, 0.00]); a concept counts as non-linearly
+        recoverable only if the MLP $-$ chance interval lies clearly above 0. Point values unchanged, so the
+        exported erasure macros keep their meaning. Tests: an erased concept is not above chance for either probe;
+        four correlated copies per item widen the interval by more than 1.6$\times$ once clustered.
+  \item \textbf{(2, low) Labels were not checked.} A 1/2-coded label made the ``0'' class empty, the
+        difference-of-means direction NaN, and \texttt{gram\_schmidt} dropped it --- the ``diffmean'' row would have
+        silently equalled ``none''. Labels must now be 0/1 with both classes in a training split.
+  \item \textbf{(3, low) Naming and wording.} \texttt{diffmean\_erase} returned a direction, not an eraser:
+        renamed \texttt{diffmean\_direction}. LEACE's guarantee (no linear classifier beats a constant) is exact
+        on the states it was fitted on and approximate on held-out ones (its covariance estimate is
+        rank-deficient when the dimension exceeds the training states); the module and the runner, which said
+        ``Linear$\to$chance after LEACE is guaranteed'', now say so. \texttt{requirements-analysis.txt} named
+        files that no longer exist.
+\end{itemize}
+Tests 698 passed. \textbf{erasure.py: reviewed}.
+
+\subsection*{2026-09-27 --- probes/ reviewed (session 3 closed)}
+All five files reviewed line by line (\texttt{heads}, \texttt{probe}, \texttt{embedding\_cache},
+\texttt{cross\_marker\_directions}, \texttt{erasure}; \texttt{\_\_init\_\_} is a one-line docstring): 21 numbered
+findings (heads 4, probe 6, embedding\_cache 5, cross\_marker\_directions 3, erasure 3), 20 fixed, 1 recorded and
+not fixed (\texttt{heads} finding 4: the digests leave out the bias and the gate temperature, harmless, covered by
+the revision). None changed a reported number; the golden file only gained fields. What changed in behaviour:
+\begin{itemize}
+  \item an input longer than \texttt{max\_length} is refused (\texttt{InputTooLong}), never truncated;
+  \item the forward pass reads \texttt{last\_hidden\_state} and no longer keeps every layer ($\sim$16\,GB less on
+        the 70B models);
+  \item \texttt{gram\_schmidt} handles repeated and nearly dependent directions (two passes, relative tolerance);
+  \item the embedding cache writes a shard per 4{,}096 new texts (a killed run keeps its work), memory-maps its
+        shards, checks keys against rows, and its fingerprint names the environment --- every earlier cache is
+        orphaned once;
+  \item the cross-marker geometry reports full-sample reliabilities and a cosine-ceiling matrix;
+  \item the recoverability test reports cluster-bootstrap intervals and refuses non-0/1 labels.
+\end{itemize}
+Also removed: about 165 lines of dead code in \texttt{probe.py}. \texttt{probes/} is now 1{,}418 lines (README
+review map updated; CLAUDE.md ``Current state'' and layout updated). Tests 698 passed.
+
+\textbf{Pole orientation, through \texttt{probes/}:} verified. Both direction sources point to pole A
+(\texttt{ContrastivePair} positive $=$ side A; \texttt{axis\_pairs} $=$ (pole-A cell, pole-B cell)); nulling is
+sign-invariant, so a flipped pole could only show in signed diagnostics; the cross-marker chain cells $\to$ states
+$\to\Delta_{\text{int}}\to$ reported D-disparity keeps the sign (negative $=$ pole A declined more). The last step,
+how the exported tables and the contrasts read those signs, is \texttt{scoring/}'s.
+
+\textbf{Carried forward.}
+\begin{itemize}
+  \item \texttt{scoring/}: the last step of the pole-orientation check (tables $\to$ contrast; the pilot showed
+        opposite signs between models); the direct-arm datasets have no length filter, so an over-long record now
+        stops a run with \texttt{InputTooLong} --- decide whether they select such records out up front, as the
+        cross-marker runner does; and, from \texttt{pairs/}: the additivity wording, whether the O level is read
+        as a level, \texttt{role} always \texttt{"probe"}, no result JSON recording which
+        \texttt{pairs.jsonl}/\texttt{cells.jsonl} it ran on, the neutral-decline metrics, the per-prompt breakdown for
+        education. (The question ``are inputs truncated from the right'' is answered: they are not truncated at
+        all.)
+  \item \texttt{runners/}: remove the ignored \texttt{device} arguments (about 12 call sites); whether the decision
+        arm should report a gate-fixed number for QRM (documented only); review this session's edits with their
+        files --- \texttt{run\_cross\_marker.py} (\texttt{direct\_reliability}, the new geometry fields, the printed
+        cosine/ceiling) and \texttt{run\_reasoning\_erasure.py} (applicant groups, intervals); and, from
+        \texttt{pairs/}: the positioned generator's loosened limits, the limits repeated in four CLIs,
+        \texttt{run\_positioned\_maineffect.py}'s on-the-fly pairs and in-sample direction, the cross-marker runner's
+        unlogged dropped blocks, and the generator, decision-runner and exporter edits.
+  \item Still open from earlier sessions: the cross-fitting exclusion and the 8B unfair-direction effect
+        (\texttt{scoring/}/\texttt{runners/}); the NOTICE \texttt{review\_site} line (\texttt{cluster/}).
+  \item For the pilot re-run: the cache starts empty (new fingerprints); an \texttt{InputTooLong} is a record to
+        select out, not a reason to truncate or raise \texttt{max\_length}; read direction cosines against
+        \texttt{cosine\_ceiling}, and erasure verdicts from the one-sided MLP $-$ chance interval.
+\end{itemize}
 
 \bibliographystyle{plainnat}
 \bibliography{shared/references}
