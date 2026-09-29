@@ -186,9 +186,9 @@ against the current releases.}
 \begin{itemize}
   \item \textbf{Pilot-then-freeze decisions postponed until the code review is done (decided 2026-09-26).} The pilot
         ran on 2026-09-25/26 (log entry of that date), but \texttt{probe\_records}, $n$ per group and the headline
-        family ($m$, $\delta$) are \emph{not} fixed from it: only \texttt{substrates/} and (since 2026-09-27)
-        \texttt{pairs/} and \texttt{probes/} have been reviewed line by line, and a bug in \texttt{scoring/} or
-        \texttt{runners/} would feed
+        family ($m$, $\delta$) are \emph{not} fixed from it: only \texttt{substrates/}, (since 2026-09-27)
+        \texttt{pairs/} and \texttt{probes/}, and (since 2026-09-28) \texttt{scoring/} have been reviewed line by
+        line, and a bug in \texttt{runners/} would feed
         straight into the numbers these decisions rest on. Order: finish the review, re-run the pilot on the
         reviewed code (\texttt{cluster/pilot.sh}, same pre-stated rules), then decide. The configs keep their
         \texttt{TODO(pilot)} placeholders until then.
@@ -2697,6 +2697,864 @@ how the exported tables and the contrasts read those signs, is \texttt{scoring/}
         select out, not a reason to truncate or raise \texttt{max\_length}; read direction cosines against
         \texttt{cosine\_ceiling}, and erasure verdicts from the one-sided MLP $-$ chance interval.
 \end{itemize}
+
+\subsection*{2026-09-28 --- code review, scoring/: backend.py}
+Session 4 (\texttt{scoring/}) opened. \texttt{backend.py} (178 lines) loads every model; it was read against its
+tests and, offline, against the real tokenizers and configs of all eleven models in the local Hub cache.
+
+What is right, checked per model:
+\begin{itemize}
+  \item Right padding is pinned: both Gemma-2-27B tokenizers (Skywork, QRM) default to \emph{left}, so the pin
+        matters for two of the eleven.
+  \item Pad tokens: only Nemotron-70B has none; it gets \texttt{eos} as pad, which is harmless because its wrapper
+        gathers the last token from the attention mask. RB2 (8B, 70B) and both Qwen-Nemotron-32B have no pad id
+        in their model config, and the loader copies the tokenizer's. No model's tokenizer and config pad ids
+        disagree, and no pad id occurs inside a formatted conversation.
+  \item Routing: every config and tokenizer loads without remote code; QRM goes to \texttt{scoring/qrm.py},
+        Nemotron-70B to the logit wrapper, the other nine to the transformers class.
+  \item Tokenization vs the chat template: aligned for five models, an extra BOS for RB2 8B/70B and
+        Skywork-Gemma, no template for DeBERTa --- as decided 2026-09-26.
+\end{itemize}
+Five findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium) Results did not name the weights.} Nine of the eleven models load from the Hub's
+        moving \texttt{main}, and the cluster loads online. Result files recorded \texttt{model\_revision: null}, so
+        a checkpoint update between the pilot and the main runs would have changed the weights with nothing in
+        the results to show it. (The embedding cache was safe: its fingerprint holds the loaded commit.)
+        \texttt{load\_model} now logs the commit the weights came from and writes it into
+        \texttt{config.model\_revision}. Every runner loads through \texttt{load\_model}, so every result that
+        carries the config names its weights.
+  \item \textbf{(2, low--medium) Offloading only warned.} When accelerate puts part of a model on CPU or disk
+        (a 70B on two 80\,GB cards is close), the run continues orders of magnitude slower, and an unattended run
+        would hold both of the workspace's GPU slots for days. A model split between GPU and CPU, or with
+        anything on disk, is now refused (\texttt{ModelOffloaded}); a model placed wholly on the CPU
+        (\texttt{--device cpu}) is not an offload.
+  \item \textbf{(3, low) Remote code was on by default.} \texttt{trust\_remote\_code} defaulted to true, was set
+        in all sixteen configs, and \texttt{run\_experiment.py}'s flag could not turn it off (a
+        \texttt{store\_true} defaulting to true). No model needs it. With it on, a repo that gained an
+        \texttt{auto\_map} on \texttt{main} would have had its code run, and preferred over the transformers
+        class, without notice. It now defaults to false, is gone from the configs, and the flag opts in.
+  \item \textbf{(4, low) The transformers floor was wrong.} The loader passes \texttt{dtype=}, which
+        transformers reads only from 4.56 (checked in the 4.55.4 and 4.56.0 sources); \texttt{requirements.txt}
+        said $\geq$4.38 and the cluster install line $\geq$4.51. Both now say $\geq$4.56 (the cluster runs 4.57.6,
+        so nothing that ran was affected). \texttt{requirements.txt} also pointed to a
+        \texttt{requirements-cuda.txt} that does not exist.
+  \item \textbf{(5, low) Stale text.} The docstrings recounted the removed MLX backend and claimed the loader
+        reproduced the original one ``byte-for-byte''. A comment named a baseline branch using the model's own
+        pooling, which no longer exists (baseline and nulled rewards share one path since \texttt{probes/}; the
+        model's own pooling runs only in \texttt{verify\_score\_path}). The garbled \texttt{load\_model} docstring
+        in \texttt{experiment.py} was rewritten with the finding 1 change.
+\end{itemize}
+\textbf{Carried forward.} \texttt{runners/}: check that every runner's result JSON carries the config (and so the
+loaded commit). \texttt{cluster/}: the Dockerfile installs \texttt{requirements.txt}, which has no upper bound, so
+it would pull transformers 5 onto the image's torch 2.3; the documented \texttt{pip --target} path pins
+\texttt{<5}.
+
+Tests 700 passed. \textbf{backend.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, scoring/: qrm.py}
+Our implementation of the QRM-Gemma-2-27B architecture (147 lines), read against the authors'
+\texttt{modeling\_custom.py} (the checkpoint's commit 83d5ac5) and the real checkpoint files.
+
+What is right:
+\begin{itemize}
+  \item \textbf{Equivalent to the reference, bit for bit.} The reference code itself (its dead
+        \texttt{LLAMA\_INPUTS\_DOCSTRING} import removed) and our class were run on the same tiny random
+        weights. Score, gate, per-objective rewards and quantiles are identical, in a padded batch of three and
+        one text at a time. So neither documented difference changes a score: we take the last token from the
+        attention mask where the reference takes the first pad, and we drop the reference's doubled-BOS special
+        case, which never fires because the real tokenizer gives one BOS.
+  \item The non-backbone parameter names equal the checkpoint's weight index. The config sets none of the gating
+        keys, so the defaults apply, and ours equal the reference's (5 objectives, 19 quantiles, temperature 1,
+        3 hidden layers of 1024).
+  \item With the real tokenizer, the gating pattern occurs once per formatted conversation, and the gate reads
+        the \texttt{<end\_of\_turn>} that closes the user turn, also when the response contains that string. The
+        reward is read at the final newline, as with the authors' \texttt{apply\_chat\_template} usage.
+\end{itemize}
+Two findings, both fixed:
+\begin{itemize}
+  \item \textbf{(1, high for the two Gemma-2 models) Attention ran without Gemma-2's soft-cap.} Gemma-2 caps its
+        attention scores (\texttt{attn\_logit\_softcapping} $=50$). Under transformers 4.57.6 (cluster) and 5.17
+        (Mac), both Gemma-2 classes loaded with \texttt{sdpa}, which accepts the cap and silently ignores it. The
+        Skywork-Gemma-2-27B card warns that \texttt{sdpa} ``may result in bugs that could significantly degrade
+        the model's performance'' and asks for \texttt{eager} or \texttt{flash\_attention\_2}; the QRM card loads
+        with \texttt{flash\_attention\_2}. \texttt{verify\_score\_path} could not see it, since the pipeline and
+        the model's own forward share the attention. On a tiny model with large attention scores the two give
+        $-0.891/0.224$ (eager) and $-0.880/0.232$ (sdpa). \texttt{scoring.backend.attention\_kwargs} now loads
+        any model whose config sets a soft-cap with \texttt{eager}; flash-attn is not installed on the cluster.
+        This affects Skywork-Gemma-2-27B and QRM; neither had run (the pilot used Qwen-0.6B and Llama-8B), so no
+        result changes. Cost: eager materialises the attention matrix, a few GB per layer at batch 8 and 2,048
+        tokens beside 54\,GB of weights, which should fit on one 80\,GB card (an estimate, to confirm on the first
+        27B run). Test: a soft-capped tiny QRM loaded through the real loader is eager, and eager and sdpa differ
+        on it; a model without a cap keeps the default.
+  \item \textbf{(2, low) Docstring.} It now records the reference check and how attention is loaded.
+\end{itemize}
+Tests 701 passed. \textbf{qrm.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, scoring/: logit\_reward.py}
+The wrapper that makes Nemotron-70B-Reward (a causal LM) a linear-head reward model (71 lines). It was read
+against the model card, its generation config and chat template, and the real tokenizer. No correctness finding.
+\begin{itemize}
+  \item \textbf{Inputs as the card's.} The card tokenizes with \texttt{apply\_chat\_template(tokenize=True)}, which
+        adds no BOS. On two multi-paragraph conversations (credit, essay) the pipeline's token ids equal the card's
+        exactly.
+  \item \textbf{Reward position.} The template ends in \texttt{<extra\_id\_2>}, which is not a token of Llama-3's
+        vocabulary and is split into six ordinary tokens. The reward is read at the final \texttt{>}, for the card
+        and for us alike.
+  \item \textbf{Readout.} The card reads \texttt{scores[0][0][0]}: the first generated step, the first row,
+        vocabulary index 0 (the token \texttt{!}). The generation config sets no sampling, temperature or
+        penalty, so these are the raw logits $W_{\text{lm}}[0]\cdot h_{\text{last}}$, which the wrapper's score head
+        computes. \texttt{lm\_head} is untied and has no bias. The existing test compares the pipeline with the
+        card's own \texttt{generate} readout.
+  \item The backend fixes of today reach this model through the wrapper's \texttt{config} and
+        \texttt{hf\_device\_map}: the loaded commit is recorded and offloading is refused. The card's training
+        length is 4,096 tokens; our \texttt{max\_length} is 2,048.
+\end{itemize}
+Two low items, both fixed: the wrapper was created in training mode (a new \texttt{nn.Module} starts so, while
+the inner model is in eval mode; harmless, since every path calls \texttt{eval()} and Llama has no active
+dropout), and it now follows the loaded model; the docstring records the checks above.
+Tests 701 passed. \textbf{logit\_reward.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, scoring/: dataset\_base.py}
+The split into probe and test records, and how a conversation becomes the text a model scores (497 lines). Read
+against its tests and every caller; the split was run on the current credit and hiring manifests (2026-09-24).
+
+What is right:
+\begin{itemize}
+  \item \textbf{The same probe records for every direction.} With \texttt{probe\_records: 150}, all 7 credit and all
+        8 hiring (axis, encoding) combinations get the same 150 records. The cross-marker runner, which excludes
+        the probe records from its evaluation, relies on this.
+  \item \textbf{The capped eval set is balanced.} With \texttt{max\_test\_examples: 200} (credit, sex, explicit),
+        the eval set has 200 pairs from 200 different records, 25 in each template $\times$ other-factor cell
+        (2 $\times$ 4). The rotation fix of 2026-09-23 works, and the eval set is the factorial average, not one
+        corner.
+  \item \textbf{Nested probe sets.} With two strata, largest-remainder quotas cannot lose a record when the total
+        grows, so a larger probe set only adds records (the probe-size curve depends on it; tested).
+  \item \textbf{Pole orientation.} \texttt{ContrastivePair} positive $=$ \texttt{text\_a} $=$ \texttt{label\_a}
+        (e.g.\ female): a direction points from pole B to pole A.
+\end{itemize}
+Four findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium) The superseded pair-counted split was still the default.} Counting the probe split in
+        pairs (\texttt{probe\_size}) was replaced on 2026-09-24 because it gave about 38 records per single axis
+        but 150 for the intersection (audit item 4.1). It still ran whenever \texttt{probe\_records} was missing
+        (\texttt{run\_cross\_marker} or \texttt{run\_experiment} with a config that does not set it,
+        \texttt{run\_additivity --probe-records 0}), with only a log warning. The ungrouped split beside it was
+        used by no dataset. All current configs set \texttt{probe\_records}, so no result is affected. Both paths
+        are deleted: a dataset now requires \texttt{probe\_records} $\geq 1$ and always groups by
+        \texttt{source\_record\_id} (\texttt{GROUP\_BY\_RECORD} is gone). \texttt{probe\_size} is removed from the
+        datasets, \texttt{ExperimentConfig}, six runners (\texttt{run\_battery}, \texttt{run\_realfield},
+        \texttt{run\_reasoning\_flip}, \texttt{run\_decision\_response}, \texttt{run\_cross\_marker},
+        \texttt{run\_additivity}) and the \texttt{--probe-size} flags of \texttt{run\_experiment} and
+        \texttt{run\_additivity}; \texttt{split\_report} loses its \texttt{mode}. The golden file is unchanged
+        (its test already counted records). One end-to-end test that used the pair mode now uses 6 records.
+  \item \textbf{(2, low) Dead code removed:} \texttt{DatasetExample}, \texttt{DatasetRegistry},
+        \texttt{PROBE\_SIZE}, \texttt{test\_size\_actual}, \texttt{\_get\_example\_key} and the
+        \texttt{force\_pair} argument. \texttt{probe\_size\_actual} stays for now: only the cross-dataset
+        \texttt{probe\_source} path in \texttt{experiment.py} uses it, to be decided with that file.
+  \item \textbf{(3, low) Docstrings.} They described the upstream defaults (500 probe examples, ``at least 20\%
+        for testing''; the rule is $\min(20\%, 50)$ records). \texttt{ContrastivePair} gave the upstream
+        examples (uncertain, long, sycophantic) and now states positive $=$ pole A. The claim that every axis gets
+        the same probe records now says it holds where the axes cover the same records, as checked above.
+  \item \textbf{(4, low) The tokenization check used one short sample.} Whether the pipeline's token ids equal the
+        chat template's was checked on ``Should this loan be approved?'' / ``Approve.'' only, and
+        \texttt{use\_template\_tokens} (Nemotron) trusts that check. Templates differ in how they handle
+        whitespace, which a one-line sample cannot show. A second, multi-paragraph sample (blank lines, a list) is
+        now checked, and both must agree. On all eleven models the relations are unchanged (five aligned, three
+        extra BOS, DeBERTa pair format; Nemotron still aligned). Test: a template that collapses blank lines is a
+        mismatch, and \texttt{use\_template\_tokens} refuses it.
+\end{itemize}
+Tests 702 passed. \textbf{dataset\_base.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, scoring/: pair\_dataset.py (with bios\_dataset.py, education\_dataset.py)}
+The direct arm's datasets: the domain-agnostic loader (154 lines) and the hiring and education subclasses (30 lines
+each), which only set a name, a prompt and the quality field. Read against the real manifests, the ASAP 2.0 corpus
+and every reader of their fields. Two items carried forward to \texttt{scoring/} are settled here.
+\begin{itemize}
+  \item \textbf{Pole orientation, this step.} In the credit and hiring manifests (2026-09-24) side A
+        (\texttt{text\_a}/\texttt{label\_a}) is the pole-A level on every axis and encoding: female, 30, married;
+        female, 30, parental leave (proxy: parent). The intersection's side A is the all-pole-A cell (``a
+        30-year-old married woman'' vs ``a 50-year-old single man''; hiring: ``\dots woman currently on parental
+        leave'' vs ``\dots man currently in continuous employment''). Positive $=$ A and \texttt{texts["a"]} $=$ A,
+        so the chain holds up to the metrics. The education manifest is regenerated from ASAP 2.0 after the review;
+        its poles were checked in the \texttt{pairs/} session.
+  \item \textbf{No length filter needed in the direct arm (carried forward from \texttt{probes/}; closed).}
+        Credit inputs are at most 259 tokens, hiring at most 309. Education is bounded at ingest (essays over
+        6{,}000 characters are dropped): over all 7{,}083 ingested essays $\times$ both templates, with the real
+        header (longest assignment 598 characters) and a long marker, the longest input is 1{,}451 tokens
+        (Gemma-2; Qwen3, Llama-3 and RB2 tokenizers $\leq$1{,}443). Nothing is refused at
+        \texttt{max\_length: 2048}; a lower \texttt{max\_length} would stop a run with \texttt{InputTooLong}, never
+        truncate.
+  \item Loading reads the whole manifest per (axis, encoding): 1.1\,s for the 473\,MB hiring manifest, so no
+        concern.
+\end{itemize}
+Three findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, low) \texttt{role} was a leftover (carried forward from \texttt{pairs/}).} Every writer set
+        \texttt{role="probe"}, every row of both manifests said so, and the only reader was this loader's filter,
+        which therefore dropped nothing, plus a count in the manifest summary. The name also misled: these rows
+        become probe and eval pairs, since the split happens in the dataset. The field is removed from
+        \texttt{pair\_to\_record} and its three callers (\texttt{pairs/factorial.py},
+        \texttt{generate\_education}, \texttt{generate\_positioned}), the filter from the loader, and the summary
+        counts per (axis, encoding) (\texttt{counts\_by\_axis\_encoding}). Existing manifests still load.
+  \item \textbf{(2, low) Eval examples could not be broken down (carried forward from \texttt{pairs/}: the
+        education per-prompt breakdown).} Their metadata now carries the record's quality label
+        (\texttt{strong}) and, for education, \texttt{prompt\_id}, and deliberately nothing else from
+        \texttt{real\_fields}: those are the writers' real demographics (minors, for ASAP 2.0) and must never reach
+        a result file. A test pins both. The breakdown itself is built with \texttt{demographic\_experiment.py}.
+  \item \textbf{(3, low) Docstrings.} The module said the format ``falls back to pair-format for DeBERTa'';
+        DeBERTa is refused at load. It now records the pole check, the education docstring the length check.
+\end{itemize}
+Tests 703 passed. \textbf{pair\_dataset.py, bios\_dataset.py, education\_dataset.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, scoring/: experiment.py}
+The experiment configuration and the evaluation pipeline of the direct arm (729 lines), read against every caller,
+its runner and the git history. The main finding changes what the direct arm's runner is.
+\begin{itemize}
+  \item \textbf{(1, high) The direct arm's documented runner did nothing.} \texttt{runners/run\_experiment.py}
+        built the config, logged it, looked up the experiment class and exited, without ever calling
+        \texttt{run()}, from the repository's initial commit on. Nothing else called \texttt{evaluate()}, no runner
+        and no test, so the whole evaluation half of \texttt{BiasExperiment} was unreachable: \texttt{evaluate},
+        \texttt{run}, \texttt{build\_probe}, \texttt{load\_dataset}, the cross-dataset \texttt{probe\_source}
+        path, the results/plot/raw-data writers and \texttt{ExperimentResults}. The documented command (README,
+        CLAUDE.md, and the cluster parity check, ``auto-influence 1.00 $\to$ 0.06'') exited cleanly and wrote
+        nothing, and the exporter's four \texttt{autoInfl*}/\texttt{meanGap*} macros read files nothing could
+        produce any more. The 2026-09-09 parity pass must predate the initial commit.
+        \texttt{run\_battery.py} computes a superset of that output (every axis $\times$ encoding cell, with
+        intervals, the per-template breakdown and the $\alpha$-sweep), so, as decided, the dead half is
+        \textbf{deleted}: \texttt{run\_experiment.py}, the evaluation half of \texttt{BiasExperiment},
+        \texttt{ExperimentResults}, and the \texttt{DemographicBiasExperiment} overrides only it reached (their
+        \texttt{extra} axis/encoding lookup, which had no validation, went with them). \texttt{BiasExperiment}
+        keeps the config and \texttt{load\_model}, which every runner uses; the two helpers
+        \texttt{run\_battery} borrowed are module functions in \texttt{demographic\_experiment.py}
+        (\texttt{texts\_and\_variants}, \texttt{organize\_rewards}). The exporter's four macros now read
+        \texttt{run\_battery}'s explicit sex and intersection cells (\texttt{battery\_\{cv,credit\}\_qwen06.json};
+        a collect-only test on synthetic files, nothing written), and README, CLAUDE.md and the cluster parity
+        check point at \texttt{run\_battery}. The eight per-axis configs' headers now give the equivalent
+        \texttt{run\_battery} command (\texttt{--axes}/\texttt{--encodings} from the \texttt{extra} keys they
+        carried, which nothing reads any more, and an \texttt{--out} of their own).
+        \texttt{plotting.create\_comparison\_plot} has no caller left (decided with \texttt{plotting.py}).
+        \texttt{experiment.py} is 138 lines.
+  \item \textbf{(2, medium) Config typos were silently ignored.} \texttt{from\_yaml}/\texttt{from\_dict} dropped
+        unknown keys, so a misspelt \texttt{max\_test\_example} or \texttt{split\_sed} fell back to its default
+        without notice. An unknown key is now an error (the upstream \texttt{output\_dir} is still accepted).
+        Seven fields dead after (1) are removed from \texttt{ExperimentConfig} and the configs
+        (\texttt{null\_alpha}, \texttt{save\_probe}, \texttt{raw\_data\_dir}, \texttt{plots\_dir},
+        \texttt{dataset\_class}, \texttt{dataset\_name}, and \texttt{artifacts\_dir}, which no config set). A test
+        loads every config under the strict check; the two credit configs whose \texttt{extra} block became empty
+        state \texttt{domain: credit}.
+  \item \textbf{(3, low) Docstrings.} The upstream six-step pattern, the garbled \texttt{device} text (``MLX was
+        removed; see installed'') and the upstream examples (length, sycophancy, gsm8k) are replaced; two config
+        comments still named MLX.
+\end{itemize}
+\textbf{Carried forward to \texttt{runners/}:} the battery's default output name is per domain
+(\texttt{battery\_\{domain\}\_qwen06.json}), so a single-cell run without \texttt{--out} would overwrite the full
+battery the exporter reads; and its JSON carries the model path but not the config, so it does not record the
+loaded commit (see \texttt{backend.py}). Tests 722 passed. \textbf{experiment.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, scoring/: demographic\_experiment.py}
+Now only metric functions (240 lines): the direct arm's auto-influence, the blatant decision arm and the
+reasoning 2$\times$2, with their intervals (\texttt{scoring/intervals.py}). Read against every caller and a local
+smoke measurement.
+
+What is right:
+\begin{itemize}
+  \item \textbf{Pole orientation, the direct arm's last step.} \texttt{mean\_gap} $=$ A $-$ B $=$ pole A $-$ pole B,
+        so negative means pole A is scored lower; the exporter keeps the sign. In the decision arm
+        \texttt{mean\_gap\_fair\_minus\_disc} is positive when the fair verdict is preferred. (The cross-marker
+        tables are checked with \texttt{cross\_marker\_metrics.py}.)
+  \item \textbf{The neutral-decline metrics (carried forward from \texttt{pairs/}).}
+        \texttt{disc\_win\_rate\_vs\_neutral\_decline} and \texttt{mean\_gap\_neutral\_decline\_minus\_disc}
+        compare two declines that differ only in the stated reason: the only contrasts of the blatant arm that
+        hold the decision fixed, as documented.
+  \item The decision arm has one item per record, so its item-level bootstrap is right; the matched-pair and
+        change intervals cluster by record. The reasoning formulas match their docstring (the arm is the known
+        unported gap).
+\end{itemize}
+Three findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium) Exact ties counted as a win for B.} Rewards come out in the model's dtype (bf16,
+        about three significant digits), and every rate compared with a strict $>$. On a local smoke run
+        (Qwen3-0.6B on MPS, credit, 150 probe records, 200 eval pairs; plumbing only, not a result) 14 of 200 sex
+        pairs and 12 of 200 intersection pairs tie exactly after nulling. Counting a tie as $\tfrac12$ (the
+        Mann--Whitney convention, which \texttt{cross\_marker\_metrics} already used) moves nulled sex
+        auto-influence from 0.190 to 0.120 and nulled intersection from 0.070 to 0.130: the bias runs toward B,
+        so a correction can go either way, and it lands in the regime where ``auto-influence drops to $\approx$0
+        after nulling'' is read. Now every win rate counts a tie $\tfrac12$ (\texttt{intervals.win}): the
+        matched-pair rates, what nulling changed, the decision arm's rates and the reasoning headline;
+        \texttt{n\_ties} / \texttt{n\_ties\_disc\_fair} count them. Each statistic is defined once
+        (\texttt{PAIR\_STATS}, \texttt{\_DECISION\_STATS}) and the point estimates are computed from the same
+        definitions, so an interval's estimate is always the reported value (before, point and bootstrap versions
+        were written twice). A decision item with a missing score is left out of the metrics that need it instead
+        of raising. This joins the earlier note that nulled rates are decided by numerical noise (bf16 vs fp32):
+        read nulled effects from \texttt{abs\_mean\_gap}.
+  \item \textbf{(2, low) The direct arm no longer said which side was A.} The override deleted with
+        \texttt{experiment.py} had added \texttt{label\_a}/\texttt{label\_b}; \texttt{auto\_influence\_with\_intervals}
+        now records them (and refuses mixed labels), so every battery cell names its sides.
+  \item \textbf{(3, low) Breakdowns (carried forward from \texttt{pairs/}: the education per-prompt breakdown).}
+        The battery broke the baseline down by template only, and only as the saturating auto-influence.
+        \texttt{subgroup\_metrics} gives the full metric set (\texttt{mean\_gap}, \texttt{abs\_mean\_gap},
+        \texttt{pref\_a\_rate}, auto-influence, $n$, ties) per value of a metadata key; the battery reports it by
+        template, by record quality (\texttt{strong}) and, for education, by essay prompt (\texttt{prompt\_id}).
+\end{itemize}
+\textbf{Carried forward to \texttt{runners/}:} whether the decision arm's records overlap the probe records its
+direction was fitted on. Tests 726 passed. \textbf{demographic\_experiment.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, scoring/: intervals.py}
+The cluster bootstrap shared by the direct, decision, A2, additivity, erasure and cross-marker metrics (117 lines).
+The resampling is right: whole clusters, every statistic on the same replicates, the point estimate on the full
+data, deterministic in the seed; \texttt{auto\_influence\_change} equals nulled minus baseline auto-influence
+exactly (differences of bf16 values are exact in float64). Four findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium) The folded statistics cannot show that no effect is left --- a reading rule.}
+        Auto-influence ($|\text{pref\_a\_rate}-\tfrac12|\cdot2$) and \texttt{abs\_mean\_gap} (mean $|$gap$|$) are
+        zero only for an exactly zero effect and positive under noise alone. On 200 simulated no-effect data sets
+        the 95\% interval excluded ``no effect'' for 49/200 (auto-influence) and 200/200 (\texttt{abs\_mean\_gap}),
+        against 12/200 for each signed statistic (\texttt{mean\_gap}, \texttt{pref\_a\_rate}), close to nominal.
+        The earlier rule ``judge nulled effects by \texttt{abs\_mean\_gap}'' would have read noise as a residual
+        bias. \textbf{Reading rule} (docstrings of \texttt{intervals.py} and \texttt{demographic\_experiment.py},
+        CLAUDE.md): whether a preference is left, e.g.\ after nulling, is read from the \emph{signed} intervals
+        (\texttt{mean\_gap} covering 0, \texttt{pref\_a\_rate} covering $\tfrac12$); \texttt{abs\_mean\_gap} is a
+        size that includes a noise floor; how much nulling removed is read from the change intervals
+        (\texttt{mean\_gap\_change}, \texttt{abs\_mean\_gap\_change}). The battery now prints the nulled signed
+        intervals. A test pins the property on simulated data.
+  \item \textbf{(2, low) Edge cases.} With no cluster the result lacked \texttt{estimate}/\texttt{ci\_low}/
+        \texttt{ci\_high} (a \texttt{KeyError} in every caller); with one cluster the interval had zero width,
+        which reads as certainty. Both now give NaN intervals with every key present.
+  \item \textbf{(3, low) Replicates on which a statistic is undefined were dropped silently.}
+        \texttt{n\_boot\_valid} now says over how many replicates each interval was taken.
+  \item \textbf{(4, low) Docstring}: it listed four arms; the erasure test and the cross-marker metrics use it too.
+\end{itemize}
+Tests 728 passed. \textbf{intervals.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, scoring/: cross\_marker\_metrics.py}
+The harm evidence's metrics (777 lines), read against the design code, the runner, the golden test and these
+notes. Two items carried forward from \texttt{pairs/} and the pole-orientation check are settled here.
+
+What is right:
+\begin{itemize}
+  \item \textbf{Pole orientation, last step (closed).} Effects coding gives $x=+1$ to \texttt{factors[axis][0]},
+        which is pole A in all three designs (female/30/married; female/30/parental leave; female/black/low
+        income); every axis pair is (pole-A cell, pole-B cell) and the intersection pair is (all-A, all-B). So a
+        disparity is the mean over pole-A cells minus the mean over pole-B cells, and a negative D-disparity
+        means pole A is declined more; strata and the corner keep the order. Accuracy cross-influence is
+        deliberately acc(B) $-$ acc(A) (positive: the marker costs accuracy), as documented. With the datasets
+        and metrics checked earlier today, the chain from manifest to exported table is verified in full; the
+        pilot's opposite signs between models are a property of the models, not of the code.
+  \item The decomposition: main effect $=\sum x M/4$, two-way $=\sum x_ix_jM/2$ (the pair's DiD averaged over the
+        third factor), three-way $=$ the DiD of DiDs, additivity gap $=$ three-way$/4$; the vectorised version is
+        pinned against the reference. Ties count $\tfrac12$ in accuracy and every AUC; the AUC bootstrap by
+        multiplicities is exact; the scaled effects re-estimate the SD in every replicate; the record is the
+        resampling unit, and accuracy and AUC decide per template.
+\end{itemize}
+Four findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, low, reading; the additivity wording carried forward from \texttt{pairs/}) The additivity gap
+        cannot show intersectionality between two attributes.} A penalty for young women alone (female $\times$
+        30, D lower by 1) gives sex and age disparities of $-0.5$ each, a sex $\times$ age interaction of $-1$, and
+        an additivity gap of exactly 0. \textbf{Reading rule} (module docstring, pinned by a test): ``additive''
+        means ``no three-way term''; intersectionality is read from the two-way interactions and the three-way
+        term; a negative D interaction means the cells protected on both factors are declined more than the two
+        main effects predict. RQ1.1's ``non-additive'' (above) is about directions --- the cosine of the
+        intersection direction with the sum of the marginal ones --- not this reward-space gap.
+  \item \textbf{(2, low, reading; the O level carried forward from \texttt{pairs/}) Levels are not effects.} The
+        docstring said O ``should be strongly negative'', reading O's level as the penalty for naming protected
+        categories. O's level compares two different response texts and contains their wording and length
+        differences; O's disparity is within-record, but the overt text names the cell's categories, so it
+        measures how differently the RM treats naming one group rather than the other (the intended cross-marker
+        form of the blatant verdict). The docstring now says \texttt{level\_*} are descriptive and the
+        disparities and interactions are the effects.
+  \item \textbf{(3, low) One-record groups had zero-width intervals} (\texttt{summarize},
+        \texttt{summarize\_balanced}, the AUC cross-influence), as in \texttt{intervals.py}; now NaN.
+        \texttt{DEFAULT\_N\_BOOT} is imported from \texttt{intervals.py} instead of defined twice.
+  \item \textbf{(4, low) \texttt{placement\_check} turned a missing direct cell into a silent NaN}; it now raises,
+        as \texttt{RewardIndex} does for the same kind of hole (the runner drops blocks whole).
+\end{itemize}
+The golden file is unchanged (its groups have 14 and 9 records). Tests 731 passed.
+\textbf{cross\_marker\_metrics.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, scoring/: plotting.py}
+The whole module (769 lines) was unused: its only caller, \texttt{DemographicBiasExperiment.\_create\_plot}, went
+with the dead half of \texttt{experiment.py}; no runner, test, cluster script or these notes use it, and nothing
+else imports matplotlib. Five of its seven functions were upstream's plots (position, sycophancy, length bias);
+its error bars were binomial normal approximations over single pairs, too narrow for record-clustered pairs and
+against the cluster-bootstrap convention. \textbf{Deleted}, with \texttt{matplotlib} from
+\texttt{requirements.txt}. Figures will be written anew from the final result files, which carry the bootstrap
+intervals (decided 2026-09-28). \textbf{plotting.py: reviewed}.
+
+\subsection*{2026-09-28 --- scoring/ reviewed (session 4 closed)}
+All files reviewed line by line: \texttt{backend}, \texttt{qrm}, \texttt{logit\_reward}, \texttt{dataset\_base},
+\texttt{pair\_dataset} with \texttt{bios\_dataset} and \texttt{education\_dataset}, \texttt{experiment},
+\texttt{demographic\_experiment}, \texttt{intervals}, \texttt{cross\_marker\_metrics}, \texttt{plotting}
+(\texttt{\_\_init\_\_} is a one-line docstring). 31 numbered findings (backend 5, qrm 2, logit\_reward 2,
+dataset\_base 4, pair\_dataset 3, experiment 3, demographic\_experiment 3, intervals 4, cross\_marker\_metrics 4,
+plotting 1), all fixed. \texttt{scoring/} went from 3{,}789 to 2{,}338 lines (README review map and status,
+CLAUDE.md ``Current state'', layout and hardware notes updated). Tests 731 passed.
+
+What changed in behaviour, to know before any run:
+\begin{itemize}
+  \item \textbf{The direct arm runs through \texttt{runners/run\_battery.py}.} \texttt{run\_experiment.py} never
+        ran and is gone with the evaluation half of \texttt{experiment.py}; the exporter's auto-influence macros
+        read the battery's explicit sex and intersection cells.
+  \item \textbf{Model loading.} Gemma-2 (Skywork-Gemma, QRM) loads with eager attention (sdpa silently dropped the
+        attention soft-cap); a model partly offloaded to CPU or disk is refused; results record the Hub commit
+        the weights came from; remote code is off by default; transformers $\geq$4.56.
+  \item \textbf{Splits and configs.} The probe split is counted in records only (\texttt{probe\_size} is gone); an
+        unknown config key is an error; the dead config fields are removed; \texttt{role} is gone from the
+        manifests' rows.
+  \item \textbf{Metrics.} Exact ties count $\tfrac12$ in every win rate; each statistic is defined once, so a point
+        estimate is its interval's estimate; a remaining preference is read from the \emph{signed} intervals
+        (auto-influence and $|$gap$|$ are folded); one-record or one-cluster intervals are NaN; eval examples
+        carry the quality label and the education prompt (never the writers' real demographics); the battery
+        breaks cells down by template, quality and prompt and names side A and B.
+\end{itemize}
+\textbf{Settled here from the carry-forward list:} the pole-orientation check (verified from manifest to exported
+table); the direct arm's length filter (not needed: inputs $\leq$1{,}451 tokens); \texttt{role}; the
+neutral-decline metrics; the additivity wording and the O level (reading rules); the education per-prompt
+breakdown.
+
+\textbf{Carried forward.}
+\begin{itemize}
+  \item \texttt{runners/}, from this session: every runner's result file should carry the config (and so the loaded
+        commit) and name the \texttt{pairs.jsonl}/\texttt{cells.jsonl} it ran on --- the battery writes only the
+        model path; the battery's default output name is per domain, so a single-cell run without \texttt{--out}
+        would overwrite the full battery the exporter reads; whether the decision arm's records overlap the probe
+        records its direction was fitted on; review the edits of this session in \texttt{run\_battery},
+        \texttt{run\_additivity}, \texttt{run\_cross\_marker}, \texttt{run\_decision\_response},
+        \texttt{run\_realfield}, \texttt{run\_reasoning\_flip}, \texttt{export\_paper\_numbers},
+        \texttt{generate\_education} and \texttt{generate\_positioned}.
+  \item \texttt{runners/}, still open from earlier sessions: remove the ignored \texttt{device} arguments; the
+        decision arm's gate-fixed number for QRM; the \texttt{probes/} session's edits in
+        \texttt{run\_cross\_marker} and \texttt{run\_reasoning\_erasure}; the \texttt{pairs/} items (the positioned
+        generator's loosened limits, the limits repeated in four CLIs, \texttt{run\_positioned\_maineffect}'s
+        on-the-fly pairs and in-sample direction, the cross-marker runner's unlogged dropped blocks, the
+        generator, decision-runner and exporter edits); the cross-fitting exclusion and the 8B unfair-direction
+        effect.
+  \item \texttt{cluster/}: the NOTICE \texttt{review\_site} line; the Dockerfile installs \texttt{requirements.txt}
+        without an upper bound on transformers (the image's torch 2.3 needs $<$5); eager attention's memory on the
+        first 27B run.
+  \item For the pilot re-run: read a remaining preference from the signed intervals; nulled rates now count ties
+        $\tfrac12$; the Gemma-2 models get new cache fingerprints (attention implementation) automatically.
+\end{itemize}
+
+\subsection*{2026-09-28 --- code review, runners/ (session 5 opened): generate\_credit.py}
+\texttt{runners/} holds 18 scripts (3{,}986 lines): five generators, the direct arm (\texttt{run\_battery}), the
+cross-marker design with the pilot tools built on it (\texttt{run\_cross\_marker}, whose helpers
+\texttt{run\_probe\_curve} and \texttt{run\_additivity} import; \texttt{pilot\_sizing}), the other arms (decision
+response, positioned main effect, real field, additivity), the unported reasoning arm (flip, probe, erasure), the
+scrub check and the exporter. Order: generators, battery, cross-marker, the other arms, reasoning, scrub check,
+pilot tools, exporter. Three items concern every runner and are fixed once, from \texttt{run\_battery} on, as
+each file is reviewed: results name the loaded commit and the exact data they ran on; default output names
+include the model (eight runners hard-code \texttt{\_qwen06}, so an 8B run without \texttt{--out} would
+overwrite the small model's results); the ignored \texttt{device} arguments (about 20 call sites in 11 runners).
+Seven runners have no runner-level tests.
+
+\texttt{generate\_credit.py} (151 lines). Regenerated and compared with the build of 2026-09-24: 1{,}000 records
+$\to$ 952 after the record rules (45 unemployed with a skilled job, 4 owners without real estate) $\to$ 803
+after the factorial rule (149 single-level records with $\geq$3 dependents); 1{,}606 blocks per encoding, none
+dropped by the gate; 35{,}332 pairs and 3{,}212 blocks. Pair texts, labels and clauses and every cells row are
+byte-identical to the earlier build; only \texttt{role} and the provenance differ. The data on disk are valid;
+a rebuild is needed only for the manifest format. Six findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium) \texttt{cells.jsonl} was outside the manifest, and no data file was identified by
+        content.} The runner wrote \texttt{cells.jsonl} itself after the manifest: uncounted, unhashed, without
+        provenance. The cross-marker design (the harm evidence) reads it from the folder of
+        \texttt{dataset\_source}, so a \texttt{pairs.jsonl} and a \texttt{cells.jsonl} of different builds (a run
+        into the wrong folder, a crash between the two writes) could sit side by side unnoticed.
+        \texttt{write\_manifest} now writes \texttt{cells.jsonl} too (credit, hiring and the education
+        factorial), records each data file's row count and SHA-256 under \texttt{files}, removes a stale
+        \texttt{cells.jsonl} in a build without cells, and removes an earlier manifest first and writes the new one
+        last, so a build that stopped part-way leaves no manifest. \texttt{GENERATOR\_VERSION} 0.4.0. The runners
+        will copy these hashes into their results (the carry-forward item above).
+  \item \textbf{(2, low--medium) The corpus file was not identified.} The manifest now records
+        \texttt{sources}, the path and SHA-256 of each corpus file read (\texttt{german.data}:
+        \texttt{b21f3d81\ldots}). The codebook error of 2026-09-16 showed that ``which input, read how'' matters.
+  \item \textbf{(3, low; carried forward from \texttt{pairs/}) The gate limits were repeated as CLI defaults}
+        (12/3/8.0, in four generators). \texttt{pairs/validate.py} now has \texttt{add\_threshold\_args(ap, base)}
+        and \texttt{thresholds\_from\_args}; credit uses them, the other generators switch when reviewed (the
+        positioned one passes its looser base, 20/5/12).
+  \item \textbf{(4, low) The docstring overstated the real fields} (``for stratified analysis''). They sit on every
+        pair row and cells row: \texttt{credit\_good}, the quality label the probe split and the cross-marker
+        groups use, and the corpus's own sex, marital status and age, which nothing reads yet. Kept (decided
+        2026-09-28) for a check of the unrendered real attributes; the datasets keep them out of every result.
+  \item \textbf{(5, low) Dead code:} the guard for the long-removed \texttt{--n-per} flag; argparse rejects it anyway.
+  \item \textbf{(6, low) Tests:} \texttt{main()} end to end on a synthetic \texttt{german.data} (files, counts, the
+        manifest's hashes against the files on disk, the source hash, the thresholds); the record cap takes a
+        prefix of the seeded order; the threshold flags; the manifest's files, sources, stale-cells removal and
+        the part-way failure.
+\end{itemize}
+Tests 740 passed. \textbf{generate\_credit.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, runners/: generate\_bios.py}
+\texttt{generate\_bios.py} (164 lines). Regenerated and compared with the build of 2026-09-24: 257{,}478 bios
+$\to$ 94{,}226 after the scrub filters $\to$ 59{,}838 after the age rules $\to$ 32{,}774 after the 10\% profession
+cap (attorney, physician, professor capped); 4{,}000 used (2{,}004 role-matched, 1{,}996 not; the role name alone
+predicts the label with 50.2\% accuracy); 8{,}000 blocks per encoding, none dropped; 208{,}000 pairs. Pair texts
+and every cells row byte-identical to the earlier build. Six findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium, planning) A different \texttt{--n-bios} relabels the same bios.} The sample is a prefix of
+        the shuffled pool, but the qualified label and the target roles are assigned on the sample itself (exactly
+        half of each profession qualified; the mismatched group's professions permuted among themselves). Measured:
+        4{,}000 $\to$ 6{,}000 keeps the first 4{,}000 bios, but 68 change their label and 1{,}878 their target role,
+        which the header names. The probe split (first records in hash order over the manifest) and the
+        cross-marker selection (a seeded shuffle of the whole pool) change as well. A pilot on one pool and main runs
+        on a larger one would share few records and few cached states, and the pilot's SDs would come from other
+        texts. \textbf{Decided 2026-09-28: the pool is fixed at 12{,}000 bios before the pilot re-run and never
+        changed after it} (\texttt{DEFAULT\_N\_BIOS}; the rule is in the docstring and the flag's help). About
+        5{,}900 records per group after the probe exclusion: enough for the two-way interactions, whose SD is about
+        twice a main effect's (weights $\pm\tfrac12$ against $\pm\tfrac14$ over the same eight cells), at
+        $\delta=0.10$ and $m=12$ if $r\approx1$ ($n\approx5{,}500$); hiring is the only domain that can reach this
+        (credit has 239 bad records, education about 1{,}000 per group). The manifest is only the ceiling: the
+        records scored ($n_\text{strong}$, $n_\text{weak}$) stay the pilot-then-freeze decision, and GPU cost grows
+        with them only. At 12{,}000: 624{,}000 pairs, \texttt{pairs.jsonl} 1.4\,GB, \texttt{cells.jsonl} 340\,MB,
+        80\,s to generate, 3.2\,s and 0.7\,GB to load one axis/encoding; role name alone 50.07\% accurate; no gate
+        drop. The cost is three times as many real biographies processed and stored.
+  \item \textbf{(2, low--medium; carried forward from \texttt{pairs/}) The intersection's 40-character bound was
+        unneeded and wrongly motivated.} The comment said the composed clause is longer than a marginal one, but the
+        gate bounds the A$-$B difference, not the clause. Over all 208{,}000 pairs the largest intersection
+        difference is 5 characters and no axis exceeds 7. A builder mistake that dropped part of one intersection
+        clause would have passed at 40. Removed (\texttt{--intersection-char-delta}): one set of bounds for every axis.
+  \item \textbf{(3, low) As credit's 2 and 3:} the manifest names the parquet by SHA-256 (\texttt{fetch\_from\_hub}
+        downloads the mirror's moving \texttt{main}, so the hash is the only record of the version), and the
+        threshold flags come from \texttt{add\_threshold\_args}.
+  \item \textbf{(4, low) The docstring understated the real fields.} All five sit on every pair and cells row:
+        \texttt{role} (read by the cross-marker prompt), \texttt{qualified} (the quality label), and
+        \texttt{target\_role}, \texttt{profession} and the corpus's \texttt{gender}, which nothing reads from the
+        manifest (the scrub check reloads the corpus). Kept, as for credit (decided 2026-09-28).
+  \item \textbf{(5, low) Dead code:} the \texttt{--n-per} guard and two unused imports.
+  \item \textbf{(6, low) Tests:} \texttt{main()} end to end on a synthetic parquet (files, the manifest's hashes
+        against the files, the source hash, one set of bounds, the real fields and the role match), the fixed
+        default and the removed flags; the hiring gate test uses the default bounds on every axis.
+\end{itemize}
+Tests 742 passed. \textbf{generate\_bios.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, runners/: generate\_education.py}
+\texttt{generate\_education.py} (240 lines). No earlier ASAP 2.0 build was on disk (the old folders were deleted),
+so the new builds were checked directly: 17{,}307 rows $\to$ 7{,}083 after the ingest filters (10{,}198 middle
+scores, 26 over-long) $\to$ 6{,}622 after the education rules $\to$ a pool of 2{,}018 essays balanced within each
+prompt (1{,}009 strong, 1{,}009 weak). Factorial: 4{,}036 blocks per encoding, none dropped, 104{,}936 pairs;
+every axis on all 2{,}018 essays at a strong share of exactly 0.500; largest A$-$B difference 5 characters and 0
+words. Five findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium) The stage design used a quarter of the pool, unevenly.} It shuffled all (essay,
+        template) combinations and kept the first 500 clean ones: 462 of the 2{,}018 essays, 38 of them twice
+        (once per template, so they weighed double as records), strong share 0.488, and 1{,}556 essays unused. The
+        default dated from PERSUADE's 1{,}364-essay pool. With \texttt{probe\_records: 150} the exported
+        grade-level numbers rested on about 310 evaluation essays, against 2{,}018 in the factorial beside them.
+        \textbf{Now every essay $\times$ every template is one block, as in the factorial} (decided 2026-09-28;
+        \texttt{--n-per} removed): 4{,}036 blocks, 40{,}360 pairs, 0 dropped, strong share 0.500, and exactly the
+        factorial's records, so both designs share the probe split. The direct arm scores only the probe records
+        and \texttt{max\_test\_examples}, so the larger manifest costs no GPU time.
+  \item \textbf{(2, low) As credit's 2 and 3, plus dead code:} the manifest's \texttt{sources} was empty; now the
+        corpus file with its SHA-256, located by a new \texttt{education\_clean.source\_path} that the pool loader
+        uses too. Threshold flags from \texttt{add\_threshold\_args}; an unused \texttt{random} import removed.
+  \item \textbf{(3, low) The docstring did not say which real fields the rows carry:} the quality label, the prompt,
+        and the writers' real sex, ethnicity, grade level, ELL, economic and disability status --- pupils' data,
+        the most sensitive of the three corpora. Kept for the validity checks (does a marker move the score
+        differently on essays that group actually wrote?; decided 2026-09-28, as for credit and hiring); the
+        datasets keep all but the quality label and the prompt out of every result.
+  \item \textbf{(4, low) Outdated text:} the grade-level config said the stage design has ``its OWN manifest and
+        population''; it is the same pool, and now the same records. \textbf{Carried forward to
+        \texttt{run\_battery}/\texttt{export\_paper\_numbers}:} the exporter reads sex, ethnicity \emph{and}
+        grade-level cells from one \texttt{battery\_education\_asap2\_qwen06.json}, which no documented command
+        writes (the configs write one file per axis, and grade level lives in the stage manifest), so the
+        \texttt{edu*} macros cannot come out as documented.
+  \item \textbf{(5, low) Tests:} \texttt{main()} for both designs on a synthetic ASAP 2.0 file (the factorial
+        writes pairs, cells and the source hash; the stage covers every essay and template in every cell and writes
+        no cells file; \texttt{--n-per} is rejected); the stage test checks one block per essay and template.
+\end{itemize}
+Tests 746 passed. \textbf{generate\_education.py: reviewed}.
+
+\subsection*{2026-09-28 --- code review, runners/: generate\_positioned.py}
+\texttt{generate\_positioned.py} (160 lines). Built both groups at all four positions, and the plausible group
+with paraphrases: 622 essays each from the shared pool of 2{,}018 (plausible: car-free cities 314, electoral
+college 308; control: 156/156/156/154 over four prompts); 44{,}640 and 44{,}712 pairs. No pair fails any bound;
+the only drops are essays without a sentence boundary at the middle and random positions (4 plausible, 2
+control). Five findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, low--medium; carried forward from \texttt{pairs/}) The loosened bounds 20/5/12 were unneeded.}
+        Their comment said the identity phrases ``legitimately differ a little''; measured over both groups, all
+        positions and the paraphrases, the largest differences are 8 characters (\texttt{pos\_control}), 1 word
+        and 0.72 Flesch points, inside the defaults 12/3/8. A builder mistake adding up to 20 characters or 5
+        words to one side would have passed. Now the default bounds, through \texttt{add\_threshold\_args}: no
+        generator repeats the bounds any more (carried-forward item closed).
+  \item \textbf{(2, low) As credit's 2 and 5:} the corpus file with its SHA-256 in \texttt{sources}; the dead
+        \texttt{--n-per} guard removed.
+  \item \textbf{(3, low) Two docstring claims were too narrow:} the rows carry the pupils' real data as well as
+        \texttt{prompt\_id} and \texttt{standpoint\_fit} (kept, as decided); every axis uses the same essays, but
+        the middle and random positions lose the essays without a sentence boundary.
+  \item \textbf{(4, note; carried forward to \texttt{run\_positioned\_maineffect})} This manifest feeds only the
+        battery (\texttt{demographic\_edupos\_qwen06.yaml}); the exported A2 numbers come from
+        \texttt{run\_positioned\_maineffect}, which builds its pairs itself. Both paths must use the same bounds
+        and drop the same essays.
+  \item \textbf{(5, low) Tests:} \texttt{main()} on the synthetic ASAP 2.0 file (pairs, source hash, default
+        bounds, no cells file, the same essays on every axis, the standpoint group in the real fields;
+        \texttt{--n-per} rejected).
+\end{itemize}
+Rebuilt with the default bounds: the same 44{,}640 and 44{,}712 pairs. Tests 748 passed.
+\textbf{generate\_positioned.py: reviewed}.
+
+\subsection*{2026-09-29 --- code review, runners/: build\_first\_names.py}
+\texttt{build\_first\_names.py} (111 lines) builds the committed \texttt{substrates/resources/first\_names.txt}, the
+sex-coded first names by which the Bias-in-Bios scrub drops bios. Rebuilt from the SSA mirror and the local
+parquet: byte-identical to the committed list (1{,}880 candidates, 86 word-like removed, 1{,}767 kept). The five
+selection steps do what the docstring says; common neutral names are correctly absent (Taylor 29\% boys, Jamie
+24\%, Jessie 53\%, Casey 59\%). Three findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, low) Neither input was pinned or identified.} The source URL pointed at the mirror's
+        \texttt{master} (unchanged since 2009, but movable), the parquet comes from the HF mirror's moving
+        \texttt{main}, and the list's header named neither by hash. Now the URL is pinned to the mirror's commit
+        \texttt{b6525579}, the CSV is refused unless its SHA-256 is \texttt{1259523f\ldots} (downloaded or local),
+        and the header records both inputs' SHA-256 (the parquet's, \texttt{7c8f3734\ldots}, is the one the hiring
+        manifest records). The committed list was rebuilt: the names are unchanged, the header gained the hashes.
+  \item \textbf{(2, low) Two caveats were undocumented.} The mirror has only each sex's top 1{,}000 names per year,
+        so a sex counts 0 in the years a name ranks lower: 201 of the 1{,}767 listed names have their rarer sex in
+        the data only in some years and look more sex-coded than they are (Cameron 92\% boys, Hunter 93\%); the
+        error drops a few more bios and never lets a cue through. The ``places'' list also holds other proper
+        nouns (Christian, Summer). Both documented.
+  \item \textbf{(3, low) Untested.} Tests for the selection (window, share, the 90\% boundary), the word ratio, the
+        hash refusal, \texttt{main()} end to end with both input hashes in the header, and the curated lists. The
+        last one comes from a slip of mine during this fix: a comment typed after \texttt{PLACES = \{} swallowed the
+        set's first nine names, and the rebuild brought six of them back into the list (Alberta, Asia, Austin,
+        Brooklyn, Carolina, Chad). The rebuild diff showed it before anything else used the list; fixed and
+        pinned.
+\end{itemize}
+Tests 753 passed. \textbf{build\_first\_names.py: reviewed}. With it the five generators are reviewed; every
+manifest now names its data files and its corpus file by SHA-256, and no generator repeats the gate's bounds.
+
+\subsection*{2026-09-29 --- code review, runners/: run\_battery.py}
+The direct arm's runner (169 lines). \texttt{run\_cell} does what it should: one dataset per (axis, encoding) with
+the record-grouped, quality-stratified probe split; the direction from the probe pairs only; baseline and nulled
+rewards from one forward pass; record-bootstrap intervals for both and for the change; breakdowns by template,
+quality and prompt; the $\alpha$-sweep from the cached states. Eight findings, all fixed; three of them are the
+cross-cutting items this session fixes once for every runner.
+\begin{itemize}
+  \item \textbf{(1, medium; carried forward) A result did not say what produced it:} only the model path, the domain
+        and the cells. \texttt{scoring/experiment.py} now has \texttt{data\_file} (a generator output's path and
+        SHA-256, \emph{checked against its manifest's} \texttt{files} \emph{entry}: a mismatch, or a manifest from
+        before 0.4.0, stops the run with ``regenerate'') and \texttt{run\_metadata} (the config with the loaded Hub
+        commit, the code commit, the data files, the settings, the command line, the time). The battery writes it
+        under \texttt{meta}; every runner will.
+  \item \textbf{(2, medium; carried forward) Default names collided:} \texttt{battery\_\{domain\}\_qwen06.json}
+        whatever the model, the cells and the manifest, so an 8B run, a one-cell run, or any of the four education
+        manifests overwrote another result. Now \texttt{battery\_\{domain\}[\_\{manifest folder\}]\_\{model\}.json},
+        a run on part of the manifest adds \texttt{\_\_\{axes\}\_\_\{encodings\}}, and an existing file is never
+        replaced without \texttt{--overwrite}. The configs' hand-made \texttt{--out} paths are gone (README and
+        cluster README updated). \textbf{Carried forward to \texttt{export\_paper\_numbers}:} its file names.
+  \item \textbf{(3, medium--low) The default cells did not fit two manifests.} The defaults were the domain's
+        factorial axes $\times$ explicit/proxy, so the stage and A2 manifests crashed (``no pairs for axis=sex'')
+        after the model had loaded. The cells now come from the manifest (\texttt{counts\_by\_axis\_encoding});
+        \texttt{--axes}/\texttt{--encodings} filter them, and a name the manifest lacks stops the run before loading.
+  \item \textbf{(4, low--medium; reading rule) The $\alpha$-sweep reported only the folded auto-influence}, whose
+        end point cannot reach 0 (the docstring read it as ``drops sharply toward 0''). Each $\alpha$ now reports
+        \texttt{mean\_gap}, \texttt{pref\_a\_rate}, \texttt{abs\_mean\_gap} and \texttt{auto\_influence}; the report
+        prints the signed ones.
+  \item \textbf{(5, low) Docstring} rewritten (it described a credit-only, Qwen-only battery); \texttt{probe\_accuracy}
+        is marked in-sample.
+  \item \textbf{(6, low; carried forward) The ignored \texttt{device} argument} is gone from \texttt{probes/probe.py}
+        (\texttt{get\_embeddings}, \texttt{build\_probe\_direction}, \texttt{get\_rewards\_both}) and from all call
+        sites in 11 runners and 5 test files, in one change; the loader's \texttt{device} (config and
+        \texttt{--device}) stays, since it places the model. The golden cross-marker test is unchanged.
+  \item \textbf{(7, low) No model overrides:} \texttt{--model}, \texttt{--revision}, \texttt{--batch-size},
+        \texttt{--device}, \texttt{--probe-records}, now shared (\texttt{scoring.experiment.add\_override\_args},
+        \texttt{apply\_overrides}; the cross-marker and probe-curve runners use the same function).
+  \item \textbf{(8, low) Untested:} unit tests of the new helpers; the battery end to end on the tiny model (cells
+        from the manifest, the loaded commit and the data hash in \texttt{meta}, the sweep's end points equal the
+        baseline and nulled values, the overwrite refusal without loading the model, and bad inputs stopping the run
+        before it). The shared credit fixture now writes its data through \texttt{write\_manifest}.
+\end{itemize}
+The credit data on disk (generator 0.2.0) is now refused, as intended, until the manifests are rebuilt.
+Tests 762 passed. \textbf{run\_battery.py: reviewed}.
+
+\subsection*{2026-09-29 --- code review, runners/: run\_cross\_marker.py}
+The harm evidence's runner (849 lines), read in full: settings, record selection with the length guard, rows,
+the direct directions (with the \texttt{probes/} session's reliability fields), the scoring and mechanism layer,
+the QRM gate column, the report, \texttt{main}. The reviewed modules are used as intended: each fold's decision
+and placement rows are nulled with the direction fitted on the other folds (the $\alpha$-sweep too); the geometry
+uses full-data fits and says so; the direct directions come from the probe records, which are excluded.
+
+\textbf{Two items carried forward since 2026-09-26, settled.}
+\begin{itemize}
+  \item \textbf{The cross-fitting exclusion: verified, closed.} The runner applies each fold's direction only to
+        that fold's rows; \texttt{cross\_fitted} was reviewed in \texttt{probes/}; a test pins that a record's
+        column uses the direction fitted without its fold. The interaction direction's near-complete nulling is
+        not a leak.
+  \item \textbf{The 8B unfair-direction effect: a reading question, not a code one.} The metrics report margins
+        (differences of two responses), so the summary cannot say whether nulling moved the approve or the decline
+        rewards; \texttt{\_rewards.jsonl} holds every row's reward in every column with its response, so it is
+        answered offline. \textbf{To check in the reviewed pilot re-run.}
+\end{itemize}
+Six findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium; carried forward) The result did not name its data, and \texttt{--cells} could mix
+        builds.} A \texttt{cells.jsonl} of another build than the \texttt{pairs.jsonl} the directions come from
+        (say the 4{,}000-bio one against the 12{,}000-bio one) would have excluded the wrong records and let probe
+        records into the evaluation, silently. \texttt{--cells} is gone (the cells are always those the pairs'
+        manifest lists); both files are checked against their hashes before the model loads; the summary carries
+        \texttt{meta} (\texttt{run\_metadata}).
+  \item \textbf{(2, medium) A smoke or partial run overwrote the full result} and its three side files (the name did
+        not depend on the settings). An existing result is now refused before the model loads unless
+        \texttt{--overwrite}; the name gets the manifest folder when it differs from the domain, as the battery's.
+        \texttt{cluster/pilot.sh} already skips finished steps.
+  \item \textbf{(3, low--medium; carried forward) Dropped and missing records were not logged,} and a bad request
+        failed late. Mismatched blocks, incomplete records and a shortfall are now logged: requesting more records
+        than exist (the pilot's \texttt{--n-strong 100000}) is noted as ``took all'', any other shortfall warned
+        about, since it lowers the planned $n$. An encoding or template absent from \texttt{cells.jsonl} stops the run
+        before loading (it used to make every record ``incomplete'' and fail after the directions).
+  \item \textbf{(4, low) Dead code:} an unused import, two placeholder-less f-strings; \texttt{n\_boot}'s default
+        now imported from \texttt{intervals.py}. The overrides are the shared ones (\texttt{add\_override\_args}).
+  \item \textbf{(5, low) Docstring:} \texttt{meta}, the cells/manifest pairing, the overwrite rule, ``take all''.
+  \item \textbf{(6, low) Tests:} \texttt{main()} end to end on the tiny model (the four outputs, both hashes and the
+        loaded commit in \texttt{meta}, the probe exclusion and ``took all'' in the log, the overwrite refusal without
+        loading), and bad requests stopping the run before the model loads.
+\end{itemize}
+Tests 764 passed. \textbf{run\_cross\_marker.py: reviewed}.
+
+\subsection*{2026-09-29 --- code review, runners/: run\_decision\_response.py}
+The blatant floor (168 lines). \texttt{run\_axis} does what the docstring says (one item per strong record, templates
+alternating; five verdicts scored baseline and nulled; the reviewed metrics with their item-bootstrap intervals,
+the neutral-decline contrast included). Six findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium--high) Hiring: the records and labels did not match the manifest.} The hiring domain's
+        \texttt{load\_records} called \texttt{load\_factorial\_bios} without \texttt{n}, so labels and target roles
+        were assigned on all 32{,}774 bios (\texttt{generate\_bios} finding 1). Measured against the 12{,}000-bio
+        manifest: 147 of its bios got another qualified label, 5{,}583 another target role (named in the decision
+        prompt), and 10{,}318 of the pool's 16{,}386 ``strong'' bios are not in the manifest at all. The decision arm
+        (and the unported reasoning arm, which uses the same loader) scored bios whose premise and role differed
+        from every other arm's. \texttt{DEFAULT\_N\_BIOS} now lives in \texttt{substrates/bios\_clean.py}; the domain
+        and the generator both use it; the domain's records equal the 12{,}000-bio build in ids, labels and roles
+        (checked). Credit and education were not affected.
+  \item \textbf{(2, medium; carried forward) The items could include the direction's probe records.} Measured on
+        credit: 105 of the 564 strong records are probe records (the probe split is stratified, and 70\% of credit
+        records are strong), so about 19\% of the items, some 37 of 200. They are now excluded before sampling, as in
+        the cross-marker design, and counted.
+  \item \textbf{(3, medium) Provenance, names, overrides:} \texttt{decision\_\{domain\}\_qwen06.json} made an explicit
+        and a proxy run (or two models) overwrite each other. Now \texttt{decision\_\{domain\}\_\{model\}\_\{encoding\}.json},
+        refused if it exists without \texttt{--overwrite}; \texttt{meta} with the manifest checked before loading;
+        the evaluated record ids; the shared overrides. \textbf{Carried forward to \texttt{export\_paper\_numbers}:} its
+        file name.
+  \item \textbf{(4, low--medium; carried forward) The QRM gate.} For a gated head the projection leaves the gate,
+        read from the marked prompt, untouched. Gated heads now also get \texttt{gate\_fixed} (the verdicts
+        rescored with the gate of the same record's unmarked decision prompt: the last-token pathway alone) and
+        \texttt{nulled\_gate\_fixed} (both pathways removed), with intervals; new
+        \texttt{pairs.verdicts.unmarked\_decision\_prompt}. Scoring now goes through
+        \texttt{embed\_with\_gates}/\texttt{rewards\_from\_hidden}, as elsewhere.
+  \item \textbf{(5, low) Docstring:} no ``default Qwen3-0.6B''; the nulling direction is the direct arm's (marker in
+        the response) applied with the marker in the prompt, a transfer test; the probe exclusion; the gate.
+  \item \textbf{(6, low) Tests:} the hiring loader's pool size; the item selection; \texttt{main()} end to end on the
+        tiny linear model (probe exclusion, \texttt{meta}, name, overwrite refusal without loading) and on the tiny
+        QRM (the gate columns).
+\end{itemize}
+Tests 768 passed. \textbf{run\_decision\_response.py: reviewed}.
+
+\subsection*{2026-09-29 --- code review, runners/: run\_additivity.py}
+RQ1.1 in state space (188 lines). Mechanically sound (all four directions on the same probe records, per-record
+contrasts, a record bootstrap), but it did not measure what RQ1.1 defines, and its verdict misled. Checked with a
+scratch run of Qwen3-0.6B on credit explicit (150 records, MPS; a check of the code, not a result). Seven findings,
+all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium) The corner was compared with the sum of the \emph{unit} marginal directions.} Under
+        additivity the all-A-vs-all-B contrast equals the \emph{vector} sum of the marginal contrasts (RQ1.1's own
+        wording); normalising first over-weights the shorter contrasts and always biases the cosine down. A perfectly
+        additive synthetic design with one contrast three times the others: 1.000 against the vector sum, 0.886
+        against the unit sum (``partially additive''). Qwen, credit: the contrast lengths differ (age 1.55, sex
+        1.43, marital 0.73), 0.9994 against 0.958. Now the vector sum.
+  \item \textbf{(2, medium; reading rule, carried forward from \texttt{pairs/}/\texttt{scoring/}) The test cannot see
+        two-way intersectionality.} In effects coding the corner is $2\sum$ mains $+ 2\times$ the three-way term; the
+        two-way terms cancel, as in reward space. Checked numerically: a strong two-way (``young women'') term leaves
+        the cosine at 1.000. So a high cosine means ``no three-way structure in state space'', not ``additive /
+        low-complexity''; two-way intersectionality is read from the cross-marker design's interactions. Docstring
+        and printout say so; decided 2026-09-29 to leave state-space two-way terms out.
+  \item \textbf{(3, low--medium) The verdict} (``additive'' $\geq 0.9$, ``partially'' $\geq 0.6$, never
+        pre-registered, read off the point estimate) is gone. \textbf{Its replacement changed once during the fix.}
+        The first version gave the cosine and a residual share bootstrap intervals and a reliability ceiling; the
+        scratch run showed both invalid: the intervals missed their own estimates (cosine 0.9994, ``interval''
+        $[0.9989, 0.9993]$; residual 0.034, $[0.038, 0.047]$), because resampling noise lengthens a residual and
+        shortens a cosine; and the cosine exceeded its ceiling, which assumes independent noise while the corner and
+        the marginals share cell states. \textbf{Decided 2026-09-29:} the per-record residual $r = $ corner $-\ \Sigma$
+        marginals (its mean estimates twice the three-way term) is reported as a share of the corner's length ---
+        raw, the noise floor $\sqrt{\operatorname{tr} S/n}$, and debiased $\sqrt{\max(0, \|\bar r\|^2 -
+        \operatorname{tr} S/n)}$ --- and ``no three-way term'' is tested by sign flips of the records' residuals
+        (valid if each is symmetric about 0). The cosine is a point value; the pairwise marginal cosines keep
+        bootstrap intervals (not length-type; they cover their estimates). On synthetic designs: additive and strong
+        two-way both debiased 0 and $p = 0.90$; a small three-way term $p = 0.0002$; pure noise $p$ roughly uniform
+        (a test). The scratch run: raw 0.034, floor 0.025, debiased 0.023, $p = 0.0001$ --- most of the raw residual
+        is noise, a small three-way component remains.
+  \item \textbf{(4, low) Two estimates of one number} (the unit probe directions, the per-record means): one now.
+  \item \textbf{(5, medium) Provenance, names, CLI:} \texttt{meta} with the manifest checked before loading; always
+        written to \texttt{additivity\_\{domain\}\_\{model\}\_\{encoding\}.json}, never replaced without
+        \texttt{--overwrite}; the shared overrides replace the runner's own flags. \textbf{Carried forward to
+        \texttt{export\_paper\_numbers}:} its file names, and \texttt{additivityCos*} now means the cosine against
+        the vector sum.
+  \item \textbf{(6, low) Dead code} removed.
+  \item \textbf{(7, low) Tests:} the interval test built its ``additive'' intersection from unit sums (it encoded
+        finding 1); rewritten on 8-cell synthetic states (an additive design with unequal lengths at 1, a two-way term
+        invisible, a three-way term detected, the noise floor and a roughly uniform $p$ under noise, the pairwise
+        intervals), plus \texttt{main()} end to end. The shared credit fixture moved to \texttt{tests/conftest.py},
+        so no test file imports a fixture any more; \texttt{tests/} is lint-clean.
+\end{itemize}
+Tests 772 passed. \textbf{run\_additivity.py: reviewed}.
+
+\subsection*{2026-09-29 --- code review, runners/: run\_positioned\_maineffect.py}
+A2's neutral-baseline decomposition (239 lines), the source of the exported \texttt{standpointGap*} numbers. The
+decomposition is right ($\delta_A$, $\delta_B$ against each essay's single neutral rendering in the same frame; main
+effect, identity gap, the per-cell breakdown; essay-clustered intervals). Seven findings, all fixed; two close items
+carried forward from \texttt{pairs/}.
+\begin{itemize}
+  \item \textbf{(1, medium; carried forward) The in-sample direction.} A direction was fitted on all the evaluated
+        pairs, the nulled rewards computed and never used; only an in-sample probe accuracy (fitted and measured on the
+        same pairs) was reported. Removed; A2's held-out nulling is the battery's, on the positioned manifest.
+  \item \textbf{(2, medium; carried forward) The on-the-fly pairs bypassed the gate and did not all match the
+        manifest.} Checked on the plausible group: at the conclusion, opening and middle positions every pair equals the
+        manifest's; at the random position 983 of 1{,}062 (93\%) differed, the rng being keyed with an extra part.
+        Both now build every block with one function, \texttt{pairs.positionality.positioned\_block} (the same seeded
+        block, the default gate bounds, a failing block dropped whole); the generator's manifest is byte-identical to
+        before, and a test pins that the runner's texts equal the manifest's at every position.
+  \item \textbf{(3, medium) A different population.} The default was 200 essays, not a prefix of the manifest's 622,
+        so the exported A2 numbers rested on another sample than the battery's. The default is now the whole group,
+        as in the generator (\texttt{--n-essays} caps a smoke run); about three times the texts per axis, which
+        matters for the 70B models at the freeze.
+  \item \textbf{(4, low--medium) Statistics behind the conventions:} a tie counted 0 (now $\tfrac12$, via
+        \texttt{intervals.win}); every statistic is defined once and its point estimate is its interval's estimate;
+        \texttt{pref\_a\_rate} added as the signed rate; the docstring gives the reading rule (the signed
+        \texttt{identity\_gap} interval; \texttt{auto\_influence} is folded).
+  \item \textbf{(5, medium) Provenance and names:} \texttt{maineffect\_edupos\_\{source\}\_\{group\}\_qwen06.json}
+        whatever the model, stance or paraphrase, so a \texttt{--stance both} run overwrote the endorse result the
+        exporter reads. Now the model in the name plus every non-default setting, never replaced without
+        \texttt{--overwrite}; \texttt{meta} with the corpus file's SHA-256 (the runner reads no manifest) and the
+        evaluated essay ids; the shared overrides. \textbf{Carried forward to \texttt{export\_paper\_numbers}:} its
+        file names.
+  \item \textbf{(6, low) Dead code} (an unused import, a crash when an axis yields no pairs, an outdated usage line).
+  \item \textbf{(7, low) Tests:} the runner's texts equal the manifest's at all four positions; a tie counts
+        $\tfrac12$; the names; \texttt{main()} end to end on the tiny model.
+\end{itemize}
+Tests 776 passed. \textbf{run\_positioned\_maineffect.py: reviewed}.
+
+\subsection*{2026-09-29 --- code review, runners/: run\_realfield.py}
+The real-field marital cross-check (233 lines). The matching is sound and tested (exact 1:1 without replacement,
+seeded; balance against a random draw and the chance floor); the docstring's counts hold (47 divorced men, 519 married,
+all 47 matched; the good-credit rates 0.60 and 0.60, against 0.74 for all married men); the orientation note (a shared
+``married'' component gives a negative cosine) is right. Five findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium--high) The nulled gap was zero by construction.} The real-field direction is the mean state
+        difference of the 47 matched pairs, and the pairs were nulled with it: projecting it out removes exactly that
+        mean difference, so for a linear head the ``nulled'' mean gap is 0 up to bf16 rounding, whatever the model does
+        (the tiny test model: baseline 0.0149, nulled $-0.0001$). Now each pair is nulled with the direction fitted on
+        the other 46 (leave one out; the states are embedded once), and --- the actual external-validity question ---
+        also with the \emph{synthetic} marital direction, fitted on the manifest.
+  \item \textbf{(2, low--medium) The cosines came without their precision:} each direction's full-sample reliability
+        is now reported (the real one rests on 47 pairs of different applicants), so a cosine is read against
+        $\sqrt{\mathrm{rel}\cdot\mathrm{rel}}$; no bootstrap interval (length-type, as found in \texttt{run\_additivity});
+        the probe accuracy is marked in-sample.
+  \item \textbf{(3, medium) Provenance, names, overrides:} \texttt{meta} with the direct manifest checked and
+        \texttt{german.data}'s SHA-256; \texttt{realfield\_marital\_\{model\}.json}, never replaced without
+        \texttt{--overwrite}; the shared overrides; \texttt{n\_boot} from \texttt{intervals.py}.
+  \item \textbf{(4, low) Docstring} (the held-out and synthetic nulling; no ``default Qwen'').
+  \item \textbf{(5, low) Tests:} the in-sample nulled mean gap is 0 while leave-one-out's is not, and each held-out gap
+        equals a direct computation; \texttt{main()} end to end on the tiny model and a synthetic \texttt{german.data}.
+        A Qwen smoke run on MPS exercised the whole path (plumbing only).
+\end{itemize}
+Tests 778 passed. \textbf{run\_realfield.py: reviewed}.
 
 \bibliographystyle{plainnat}
 \bibliography{shared/references}
