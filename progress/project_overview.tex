@@ -60,10 +60,13 @@ component is not a local defect --- it propagates into everything trained agains
         on hiring, \autoInflSexCVbase{} $\rightarrow$ \autoInflSexCVnull{} when nulled), and a novel
         \emph{standpoint-credibility} effect appears, where the RM rewards an identical argument more when
         voiced from a marginalised standpoint (\standpointGapIntersectionPersuade{}).
-  \item The headline mechanistic result: after \leace{} the linear probe drops to chance
+  \item \outdated{The headline mechanistic result: after \leace{} the linear probe drops to chance
         (\erasureLinearLeaceCorrPL{}) while an MLP still recovers the concept (\erasureMlpLeaceCorrPL{}).
         \textbf{Nulling fixes the reward, not the representation.} (Measured so far on the reasoning concepts
-        of the model-response arm; the same test on the demographic directions is our next experiment.)
+        of the model-response arm; the same test on the demographic directions is our next experiment.)}
+        The code review (2026-09-30) found that the verdicts' surface alone gives this reading: bag-of-words
+        vectors of the same verdicts are recovered after \leace{} too. The test was redesigned (held-out
+        wording, no connective, a lexical control) and has to be re-run.
 \end{itemize}
 
 \section*{Step 3 --- What could be done next}

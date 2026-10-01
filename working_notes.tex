@@ -102,9 +102,10 @@ locates where mitigation must live (upstream data governance vs model-internal e
 \subsection{Validity confounds to pre-empt}
 \begin{itemize}
   \item \textbf{Reasoning-correctness (construct validity).} Is the measured effect really the protected
-        attribute, or the RM tracking (correct) reasoning / response quality? We have evidence it is the
-        latter for verdicts (reasoning-flip 2$\times$2 with a non-demographic commute control). Needs to
-        be a stated control, not a footnote.
+        attribute, or the RM tracking (correct) reasoning / response quality? \outdated{We have evidence it is the
+        latter for verdicts (reasoning-flip 2$\times$2 with a non-demographic commute control).} (That run was on the
+        synthetic CVs and the MLX prototype, without intervals; re-run with the reviewed runner, 2026-09-29.) Needs
+        to be a stated control, not a footnote.
   \item \textbf{Brittleness.} RMs react to non-demographic perturbations too; matched pairs must hold all
         non-target variation fixed (our Tier-1 gate).
   \item \textbf{Evasion.} Fairness framing can manifest as non-answers; score for evasion so it does not
@@ -186,11 +187,13 @@ against the current releases.}
 \begin{itemize}
   \item \textbf{Pilot-then-freeze decisions postponed until the code review is done (decided 2026-09-26).} The pilot
         ran on 2026-09-25/26 (log entry of that date), but \texttt{probe\_records}, $n$ per group and the headline
-        family ($m$, $\delta$) are \emph{not} fixed from it: only \texttt{substrates/}, (since 2026-09-27)
-        \texttt{pairs/} and \texttt{probes/}, and (since 2026-09-28) \texttt{scoring/} have been reviewed line by
-        line, and a bug in \texttt{runners/} would feed
-        straight into the numbers these decisions rest on. Order: finish the review, re-run the pilot on the
-        reviewed code (\texttt{cluster/pilot.sh}, same pre-stated rules), then decide. The configs keep their
+        family ($m$, $\delta$) are \emph{not} fixed from it: it ran before the line-by-line review, and the review
+        changed what it measures (2026-09-28 to 30: \texttt{runners/}' sizing tool applied another rule than the
+        pre-stated one, the probe-size grid now runs to 500, and every data file is regenerated). Reviewed now:
+        \texttt{substrates/}, \texttt{pairs/}, \texttt{probes/}, \texttt{scoring/}, \texttt{runners/} (closed
+        2026-09-30); \texttt{cluster/} remains. Order: review \texttt{cluster/} (its \texttt{pilot.sh} still uses the
+        old result names), regenerate every manifest (hiring at 12{,}000 bios), re-run the pilot on the reviewed code
+        (same pre-stated rules, with amendments (1) and (2)), then decide. The configs keep their
         \texttt{TODO(pilot)} placeholders until then.
         \textbf{Amendments for the re-run (decided 2026-09-26, before it):} (1) the 70B model
         (Llama-3.1-70B RB2) joins the pilot as a third model, run with enough records for both rules to apply to
@@ -203,7 +206,10 @@ against the current releases.}
         to $\{25, 50, 75, 100, 150, 200, 300, 500\}$ for all three models, so criterion (b)'s reference becomes the
         value at $N=500$ everywhere and the rule stays one rule; it also shows whether hiring's nulled gap settles
         beyond 300. With 500 probe records credit keeps only 303 records for the eval set, so its reference interval
-        is wider and (b) easier to pass.
+        is wider and (b) easier to pass. \textbf{(2) confirmed 2026-09-30} (the default grid of
+        \texttt{run\_probe\_curve.py}; a direction failing even at 500 is reported and its domain keeps 500).
+        \textbf{Carried forward to \texttt{cluster/}:} \texttt{pilot.sh}'s 70B lane still runs no probe curve and
+        30 $+$ 30 records, not amendment (1).
   \item \todo{Does the reasoning-correctness effect survive on a larger / instruct RM, and does the RM
         track quality in decision format (AUC of $D$ between strong and weak records, against the
         common-sense reference for credit and a length-only reference for essays)?}
@@ -270,7 +276,12 @@ evidence survives, so they are scheduled ahead of further breadth.
         gender label out of scrubbed activations. Near chance $\Rightarrow$ clean. That check has not been
         run on \modelSmall{} yet, and no sex-axis number from this substrate should be trusted until it is.
         \outdated{The check has since been run (review site: +0.10 over chance, about half of it the
-        occupational prior), but on the scrub before 2026-09-17; re-run on the revised scrub.}
+        occupational prior), but on the scrub before 2026-09-17; re-run on the revised scrub.} Also not
+        established (review 2026-09-30): that run sampled another population (45\% professors, no profession cap)
+        and compared point estimates whose draw-to-draw spread at 400 $+$ 400 bios is of the same size (the
+        occupation margin alone ranges $-0.01$ to $0.13$). The redesigned check reads what the probe recovers
+        beyond the occupation, paired, with an interval, on the manifest's pool; the reading ``near chance
+        $\Rightarrow$ clean'' is replaced by ``probe $-$ occupation covering 0''.
   \item \textbf{Name-pool validation} against Bertrand--Mullainathan / Haim et al.\ before any publishable
         ethnicity number. \texttt{markers.py} already self-flags the pools as an unvalidated starter set, and
         ethnicity is exactly the axis that is template-unstable across corpora
@@ -1755,6 +1766,9 @@ probe on the comparative states would separate the two --- informative either wa
 
 \paragraph{Open decisions.} Confirmatory (e.g.\ as the RQ5 transfer test) or exploratory --- to be settled with the
 headline family; the exact response set; whether education is in scope; pair counts, from the re-run pilot.
+\emph{Decided and built 2026-09-30 (entry ``build: the comparative (two-applicant) arm''): education in as an
+award allocation, merit and coded responses, one rotated context per pair; confirmatory status and pair counts still
+open.}
 
 \subsection*{2026-09-26 --- CPU cost of the cross-marker runs: profiled and removed}
 In the pilot the CPU-side phases took 31--69\% of every run, the mechanism layer most of it, and on the 8B the
@@ -3555,6 +3569,481 @@ all 47 matched; the good-credit rates 0.60 and 0.60, against 0.74 for all marrie
         A Qwen smoke run on MPS exercised the whole path (plumbing only).
 \end{itemize}
 Tests 778 passed. \textbf{run\_realfield.py: reviewed}.
+
+\subsection*{2026-09-29 --- code review, runners/: run\_reasoning\_flip.py}
+The reasoning 2$\times$2 (130 lines): correctness $\times$ conclusion for a parental-leave, an intersection and a
+non-demographic commute premise. The factorial effects match their docstring and a tie already counted $\tfrac12$.
+The flip is \emph{not} affected by the unported \texttt{years\_experience} claim: it uses the fixed wording
+(\texttt{vary=False}), which reads no record field but the role, and the records have come from the 12{,}000-bio
+hiring pool since the loader fix of \texttt{run\_decision\_response}; only \texttt{run\_reasoning\_erasure} draws the
+experience claim (\textbf{carried forward} to the README/CLAUDE.md wording at the end of the folder). Checked with a
+scratch run of Qwen3-0.6B on the 12{,}000-bio manifest (MPS, 20 items; plumbing only). Seven findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium) The probe records were not excluded.} The items were the first \texttt{--n-items} of all
+        qualified bios, nulled with directions fitted on some of them: 1 of the 200 default items per direction, up to
+        75 per direction for larger runs. Now \texttt{run\_decision\_response.select\_items} with the union of both
+        directions' probe records (75 of 5{,}999 strong records at 150 probe records).
+  \item \textbf{(2, medium) The arm is hiring-only, but the domain was not checked.} The default was credit, and
+        \texttt{getattr(r, "qualified", True)} took every credit record; such a run loaded the model and then failed on
+        the missing role. Any domain but hiring is refused before loading; strong records via \texttt{is\_strong}.
+  \item \textbf{(3, medium) No intervals.} The effects, and the arm's own question (a demographic premise minus the
+        commute control), were point values; the latter was only printed. Now each metric has a bootstrap interval
+        over records (one item per record), nulled $-$ baseline too, and \texttt{versus\_control} gives premise $-$
+        control paired by record (the premises score the same records). All are signed statistics, defined once
+        (\texttt{\_REASONING\_STATS}; the point estimate is the interval's). \emph{Reading caveat, in the docstring:}
+        the premises' ``true'' claims are not equally plausible (a long commute reducing near-term availability is a
+        weaker claim than parental leave doing so; the intersection's claim names being a young woman as the cause),
+        so premise $-$ control mixes demographic specificity with the claim's plausibility. The validity item above
+        that cited the prototype run is marked outdated.
+  \item \textbf{(4, medium) Provenance and names:} \texttt{reasoning\_cv\_qwen06.json} whatever the model; now
+        \texttt{reasoning\_cv\_\{model\}.json}, never replaced without \texttt{--overwrite}, with \texttt{meta} (the
+        manifest checked; the Bias-in-Bios parquet's SHA-256, refused unless it is the corpus the manifest was built
+        from), the record ids and the shared overrides. \textbf{Carried forward to \texttt{export\_paper\_numbers}:}
+        the file name.
+  \item \textbf{(5, low) Wasted work:} the commute control built a throwaway \texttt{family\_status} direction and
+        discarded its nulled scores, and parental leave built the same direction again. Each direction is built once;
+        the control is scored at baseline only.
+  \item \textbf{(6, low) Gated heads:} as in the decision arm, the cells are also rescored with the gate of the
+        record's prompt without a premise (\texttt{gate\_fixed}, \texttt{nulled\_gate\_fixed}); a test pins that the
+        reasoning prompt is hiring's decision prompt.
+  \item \textbf{(7, low) Docs and lint:} the config header claimed the legacy synthetic substrate; its unused
+        \texttt{max\_test\_examples} went; the interaction's sign is explained; two unused imports.
+\end{itemize}
+Tests 783 passed. \textbf{run\_reasoning\_flip.py: reviewed}.
+
+\subsection*{2026-09-30 --- code review, runners/: run\_reasoning\_probe.py}
+The mechanistic probe of the reasoning 2$\times$2 (220 lines): a correctness and a conclusion direction per premise
+(parental leave, commute), fitted on a probe split of applicants and measured on a disjoint eval split. Correct as
+found: the splits are disjoint; each direction's two pairs swap the ``so''/``but'' connective, so it averages out;
+a gated head needs no gate-fixed column (an item's four cells share the prompt, hence the gate, and the effects
+compare cells within an item). Seven findings, all fixed; the first changed the method (decided 2026-09-30, option (a)):
+\begin{itemize}
+  \item \textbf{(1, high for the reading) ``Held out'' held only the applicant out.} With the fixed wording every
+        item carried the same four verdict strings (checked: no eval verdict unseen in the probe split), and the
+        premises differed only in the subject. So the correctness direction was the difference of two fixed strings;
+        its ``held-out decodability'' asked whether that difference survives another bio, ``held-out nulling''
+        projected out the very strings the eval texts contained, and the cross-premise transfer could not ``break the
+        shared-wording shortcut'' the docstring claimed it broke (the quoted cosine of 0.94 is what the design
+        predicts). \textbf{Now held out in the wording too:} the items use the availability claim with paraphrases
+        (never the experience claim, which reads the unported \texttt{years\_experience}); the probe split draws entries
+        0--1 of every pool (the claim stems and the four connective pools; entry 0 is close to the flip's fixed wording),
+        the eval split entry 2, which the direction never saw (a test pins that no eval string is a fitted one).
+        \texttt{pairs/verdicts.py} got the pool restriction (\texttt{paraphrases}) and a fixed \texttt{claim\_type};
+        with the defaults the erasure runner's items are byte-identical (hash checked). Each item's draws are seeded by
+        (seed, premise, record). The cross-premise transfer now adds another subject on top of held-out wording, but
+        the premises share the pools, so it does not test another claim form, and their directions' cosine is
+        expected to be high for that reason; the docstring says so.
+  \item \textbf{(2, medium) No intervals, and a tie counted 0.} The paired accuracy counts a tie $\tfrac12$ and has a
+        record-bootstrap interval (a record's two pairs resampled together); each metric, baseline and nulled, and
+        nulled $-$ baseline have intervals (\texttt{reasoning\_intervals}); the cosines are point values (length-type).
+        The in-sample accuracy is replaced by the same paired accuracy on the probe split, for comparison.
+  \item \textbf{(3, medium) Domain and records} as in the flip: any domain but hiring is refused, strong records via
+        \texttt{is\_strong}, and too few records stop the run before loading (was an \texttt{assert} after it).
+  \item \textbf{(4, medium) Provenance and names:} \texttt{reasoning\_probe\_cv\_\{model\}.json}, never replaced
+        without \texttt{--overwrite}; \texttt{meta} with the parquet's SHA-256 (the runner reads no manifest), the
+        paraphrase split in the settings, both splits' record ids; the shared overrides. \textbf{Carried forward to
+        \texttt{export\_paper\_numbers}:} the file name and the keys (per direction under \texttt{directions},
+        \texttt{paired\_acc\_heldout}; under \texttt{transfer}, \texttt{\{src\}\_on\_\{tgt\}} and
+        \texttt{cosines}).
+  \item \textbf{(5, low) Redundant forward passes:} the probe texts were embedded twice and the eval texts up to six
+        times; each split is now embedded once, the directions are the mean pair difference of those states (the
+        difference of means, the pairs being matched), and all rewards come from \texttt{rewards\_from\_hidden}.
+  \item \textbf{(6, low) Docstring:} the overclaims and the prototype number are gone; an unused generator and a
+        trivial helper removed.
+  \item \textbf{(7, low) Tests:} the held-out wording (builder and runner), per-record seeding, the paired accuracy
+        (a tie, whole-record resampling) and the direction on synthetic states, \texttt{main()} end to end, the
+        refusals. The hiring fixture moved to \texttt{tests/conftest.py}. A Qwen smoke run on MPS (40 $+$ 40 items)
+        exercised the whole path (plumbing only).
+\end{itemize}
+Tests 786 passed. \textbf{run\_reasoning\_probe.py: reviewed}.
+
+\subsection*{2026-09-30 --- code review, runners/: run\_reasoning\_erasure.py}
+The \leace{} $+$ non-linear-probe test on the reasoning concepts (146 lines), the only place \leace{} has run and the
+source of the exported ``entanglement'' numbers. Its statistics are sound (intervals clustered by applicant, the
+one-sided reading against the majority-class chance, \leace{} stated to be approximate on held-out states; the
+\texttt{probes/}-session edits hold). Its design is not. Seven findings, all fixed; the first changed the method
+(decided 2026-09-30, options (a) $+$ (b)):
+\begin{itemize}
+  \item \textbf{(1, high for the reading) The surface of the verdicts alone gives the ``entangled'' reading.} Checked
+        by running the runner's own pipeline on binary bag-of-words vectors of the same verdicts, a representation
+        with nothing but word identity (200 $+$ 200 items): after \leace{} the linear probe is at chance and the MLP
+        recovers correctness at 0.98 (interval above chance $[+0.47, +0.49]$). Two routes: the connective encodes
+        whether claim and decision cohere (``so'' / ``but''), so correctness $=$ XOR(``so'', advance); and each class
+        is a union of several phrasings, which a non-linear probe maps to the label once the class means are equal.
+        The paraphrase pools meant to decorrelate the concept from a phrase create the second route. Variants: without
+        the connective still 0.995 (the phrasings); with held-out wording 0.50, with or without the connective.
+        \textbf{Now:} (a) held-out wording as in the probe runner (fit on pool entries 0--1, evaluate on entry 2; one
+        definition, \texttt{pairs.verdicts.FIT\_PARAPHRASES}/\texttt{EVAL\_PARAPHRASES}), plus the \textbf{lexical
+        control} beside every row (\texttt{probes.erasure.bag\_of\_words}, the same pipeline on the verdicts' words):
+        the model's recovery says more than the text's surface only where it exceeds it; (b) the decision is a
+        sentence of its own (\texttt{connective=False}; the flip keeps its connectives, its interaction measures that
+        coherence), because the model may carry ``concessive vs consequential'' across paraphrases, which (a) alone
+        would not remove. A test pins the control: above 0.9 on shared pools, below 0.6 in the runner's design.
+        The earlier ``entangled'' result (prototype, July; \texttt{progress/project\_overview.tex}, now marked
+        outdated there; \texttt{progress/progress\_2026-07.tex} left as a dated record) is what the surface predicts.
+  \item \textbf{(2, medium; the known porting gap) The experience claim.} Half the items drew a claim about the
+        candidate's years of experience, which Bias-in-Bios records do not have (\texttt{"several"} years), so its truth
+        label was not grounded in the record. The claim type is deleted from \texttt{pairs/verdicts.py}, with the
+        \texttt{years\_experience} fallback; every reasoning item now reads no record field but the role
+        (\texttt{TestSubstratePortingGap} pins that). \textbf{The reasoning arm has no porting gap left}; README and
+        CLAUDE.md follow at the end of the folder.
+  \item \textbf{(3, medium) Domain and records} as in the flip: any domain but hiring refused, strong records via
+        \texttt{is\_strong}, too few records stop the run before loading.
+  \item \textbf{(4, medium) Provenance and names:} \texttt{erasure\_cv\_\{model\}.json}, never replaced without
+        \texttt{--overwrite}; \texttt{meta} with the parquet's SHA-256 and the design (paraphrase split, no
+        connective); both splits' record ids; the shared overrides; \texttt{n\_boot} from the config.
+        \textbf{Carried forward to \texttt{export\_paper\_numbers}:} the file name, and the new
+        \texttt{lexical\_control} rows beside \texttt{rows}.
+  \item \textbf{(5, low) Seeding:} one sequential generator per split made an item depend on its neighbours; now
+        seeded per (seed, premise, record), shared with the probe runner.
+  \item \textbf{(6, low) Docstring:} the design, the control and the reading rule.
+  \item \textbf{(7, low) Tests:} the labels, the lexical control on both designs, \texttt{main()} end to end (both
+        row sets, intervals clustered by applicant), the refusals; the verdict tests for the new pools. A Qwen smoke
+        run on MPS (40 $+$ 40 items) exercised the whole path (plumbing only).
+\end{itemize}
+Tests 796 passed. \textbf{run\_reasoning\_erasure.py: reviewed}. With it the reasoning arm (flip, probe, erasure) is
+reviewed; its results all predate these changes and are re-run with the pilot.
+
+\subsection*{2026-09-30 --- code review, runners/: validate\_bios\_scrub.py}
+The Bias-in-Bios scrub check (183 lines), the source of the ``+0.10 over chance, of which $\sim$+0.056 is the
+occupational prior'' statement (README, CLAUDE.md, the open sub-task above). Right as found: the real gender label,
+the unscrubbed control (the probes must work), the no-model occupation baseline, the target-role design check,
+\texttt{probe\_recoverability} reused. Five findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, medium--high) Another population.} It sampled 800 bios with \texttt{load\_bias\_in\_bios}, without
+        the factorial rules and the profession cap: 45.4\% professors (manifest pool 9.9\%), and only 189 of the 800
+        in the manifest's 12{,}000. The occupational prior differs with it: over 30 draws of 400 $+$ 400 the no-model
+        occupation margin had median 0.045 there and 0.08 in the manifest's pool. Now the manifest's pool
+        (\texttt{load\_factorial\_bios} with the manifest's seed), refused unless the parquet is the corpus the manifest
+        was built from and the pool's ids and labels (gender, profession, target role, qualified) equal
+        \texttt{cells.jsonl}'s; the smoke run confirmed the match on the real 12{,}000-bio manifest.
+  \item \textbf{(2, medium) The verdict read noise.} Point estimates against a fixed 0.05, the maximum of the linear and
+        the MLP margin (biased up), and ``unexplained $=$ scrub margin $-$ occupation margin'', the difference of two
+        estimates whose spread is of the same size (the occupation margin alone: $-0.01$ to $0.13$ over draws). Now
+        no verdict: each accuracy $-$ chance with its interval, and the question itself as a \textbf{paired}
+        comparison on the same eval bios, probe correct $-$ occupation rule correct, with its bootstrap interval
+        (\texttt{probe\_recoverability(reference\_ok=)}, same replicates). Reading: above 0 $\Rightarrow$ sex signal
+        beyond the occupation; covering 0 $\Rightarrow$ no evidence of more than the prior. The field rules have
+        intervals too; an unseen profession gets the probe split's overall majority (was label 0). The earlier
+        numbers are marked not established (the open sub-task above).
+  \item \textbf{(3, medium) Provenance and names:} \texttt{scrubcheck\_bios\_\{model\}.json}, never replaced without
+        \texttt{--overwrite}; \texttt{meta} with the manifest's files and the parquet's SHA-256, both splits' bio
+        ids; the shared overrides; any config but hiring's refused.
+  \item \textbf{(4, low) Dead code and docstring:} an unreachable branch (\texttt{keep\_raw} is always on), an unused
+        import, the results changed while printing; ``both near chance $\Rightarrow$ clean'' ignored the prior,
+        which by design never sits at chance.
+  \item \textbf{(5, low) Tests:} the field rule and its fallback, the baselines, the paired reference,
+        \texttt{main()} end to end, the three refusals (domain, corpus, pool).
+\end{itemize}
+\textbf{Decided 2026-09-30: 1{,}000 $+$ 1{,}000 bios} by default (was 400 $+$ 400), since the effects in question are
+of the size of the old spread. Tests 801 passed. \textbf{validate\_bios\_scrub.py: reviewed}.
+
+\subsection*{2026-09-30 --- code review, runners/: run\_probe\_curve.py and pilot\_sizing.py}
+The pilot's two tools (236 and 165 lines), reviewed together against the pre-stated rules (2026-09-25 and the
+amendments of 2026-09-26). Right as found: the probe rule (split-half threshold, nulled $|$gap$|$ inside the
+reference interval, ``from which every larger $N$ passes''), the nested prefixes and the fixed eval set (asserted),
+the $n$ formula, the blinding (only \texttt{n}, \texttt{sd}, \texttt{scale\_sd} are read; a test pins it), and the
+pool keys against the reviewed \texttt{run\_cross\_marker} output. Checked on real outputs: a Qwen cross-marker smoke
+run (credit, 20 $+$ 20 records) and a probe curve (MPS) went through both tools (plumbing only; the tiny test model
+cannot show it, its rewards have no spread, so every $r$ is undefined). Ten findings, all fixed:
+\begin{itemize}
+  \item \textbf{run\_probe\_curve (1, medium) Provenance:} \texttt{meta}, the manifest checked before loading (a
+        pre-0.4.0 manifest was accepted), no silent overwrite, the shared overrides (it had its own, without
+        \texttt{--revision}; \texttt{--probe-records} is refused, the grid sets it); unknown axes and a grid the records
+        cannot fill stop the run before loading.
+  \item \textbf{(2, medium; decided) The grid runs to 500} by default: amendment (2) confirmed.
+  \item \textbf{(3, low--medium) A failing direction made the domain's answer None;} the rule says it is reported and
+        the domain keeps the largest $N$. \texttt{probe\_rule} gives \texttt{answer}, the domain its
+        \texttt{probe\_records} and \texttt{failing\_directions}; \texttt{pilot\_sizing} the same.
+  \item \textbf{(4, low) Forward passes:} each prefix's pairs were embedded twice and every prefix again; the largest
+        probe set now goes through the model once and every prefix's direction (the difference of means) and
+        contrasts come from its states (the existing test that the largest point equals \texttt{build\_probe\_direction}
+        passes unchanged).
+  \item \textbf{(5, low) Tests:} \texttt{main()} end to end, the refusals, the grid, the failing-direction answer.
+  \item \textbf{pilot\_sizing (1, medium) It applied another rule than the pre-stated one.} The rule sizes ``separately
+        the two-way interactions''; the tool put the three-way term in that family, and on the smoke summary it was
+        the binding contrast in both groups. Now two-way only; the three-way $r$ is listed as outside the rule.
+  \item \textbf{(2, medium) Silent drops:} an unrecognised input was ignored (the scrub-check file was), and a
+        contrast with undefined $r$ or a family without any vanished from the table. Unknown inputs are refused;
+        unsized contrasts are listed and their family keeps its row.
+  \item \textbf{(3, low--medium) The maximum over models} (amendment (1): both rules take it) was computed for
+        \texttt{probe\_records} but not for $n$; now a row per (domain, encoding, group, family) with the largest
+        required $n$ over the models, next to the smallest pool.
+  \item \textbf{(4, low) Provenance:} the inputs with their SHA-256, code commit and model commit.
+  \item \textbf{(5, low) Tests} for each of these.
+\end{itemize}
+Tests 810 passed. \textbf{run\_probe\_curve.py and pilot\_sizing.py: reviewed}.
+
+\subsection*{2026-09-30 --- code review, runners/: export\_paper\_numbers.py}
+The exporter of \texttt{shared/numbers.tex} (216 lines; the current file is from 2026-07-26, the MLX prototype). Not
+run locally (standing rule); \texttt{collect()} was checked on synthetic files and on this session's smoke outputs
+copied under the expected names (every key path resolves; plumbing only). Eight findings, all fixed:
+\begin{itemize}
+  \item \textbf{(1, high, mechanical) Every input name was stale} (\texttt{*\_qwen06.json}, which no runner writes
+        any more): after the re-run it would have exported nothing. The names now come from the runners' own
+        \texttt{default\_out}, for \texttt{--model} (default the 0.6B RM).
+  \item \textbf{(2, medium--high) Education} read sex, ethnicity and grade level from one file; the factorial and
+        the stage design are two manifests. Grade level now comes from the stage battery, and economic status (the
+        factorial's third factor, never exported) is added (\texttt{eduEconomic*AsapTwo}).
+  \item \textbf{(3, medium) Additivity:} \texttt{additivityCos*} is the vector-sum cosine, which sees only the
+        three-way term; the residual share (debiased), its noise floor and the sign-flip $p$ are exported beside it
+        (\texttt{additivityResidual*}, \texttt{additivityResidualFloor*}, \texttt{additivityThreeWayP*}); a missing
+        file is reported (it was skipped silently).
+  \item \textbf{(4, medium; decided: include) Intervals.} Every exported signed statistic carries its 95\%
+        interval as \texttt{<macro>Lo}/\texttt{<macro>Hi}: the direct arm's mean gap at baseline and nulled and
+        nulled $-$ baseline (\texttt{meanGap*}, \texttt{meanGap*null}, \texttt{meanGapChange*}, and \texttt{*Gap*} for
+        the battery and education cells), A2's identity gap and main effect, the decision win rates (with the
+        neutral-decline contrast), the reasoning effects and premise $-$ control, the probe's held-out accuracy
+        and the transfer, erasure's MLP $-$ chance with its lexical control. \texttt{auto\_influence} and the cosines
+        stay point values.
+  \item \textbf{(5, medium) Provenance:} a result without \texttt{meta} (produced before the reviewed runners) is
+        skipped and listed, never read; the header lists every source with its code commit, dirty flag, model
+        commit and data hashes, and warns on mixed commits.
+  \item \textbf{(6, medium) Write-up breakage} is reported before compiling: the macros that disappear with the
+        files still using them, the \texttt{\textbackslash markstale} lines for macros no longer exported, and the
+        macros \texttt{numbers\_manual.tex} defines as well. It changes no \texttt{.tex} file but \texttt{--out}.
+        Checked read-only against this repo: at the next export the working notes' two uses of
+        \texttt{\textbackslash eduEthnicityExplicit\{Asap,Persuade\}} break (now \texttt{*AsapTwo}), the manual
+        \texttt{\textbackslash additivityCosCredit} (and \texttt{CV}) collide, and 45 \texttt{\textbackslash markstale}
+        lines flag retired macros; the old \texttt{sections/*.tex} draft and the progress notes use retired macros too.
+  \item \textbf{(7, low)} The reasoning keys (the probe's \texttt{directions}, \texttt{transfer}; erasure's
+        \texttt{lexical\_control}); \texttt{nEvalStandpoint*} counts essays; undefined values print as ``--''.
+  \item \textbf{(8, low) Tests} rewritten for the new names and shapes (11).
+\end{itemize}
+Not exported yet: the cross-marker design (its headlines come with the headline family). Tests 819 passed.
+\textbf{export\_paper\_numbers.py: reviewed}.
+
+\subsection*{2026-09-30 --- runners/ reviewed (session 5 closed)}
+All 18 scripts reviewed line by line (\texttt{\_\_init\_\_} is empty). 108 numbered findings, all fixed:
+\texttt{generate\_credit} 6, \texttt{generate\_bios} 6, \texttt{generate\_education} 5, \texttt{generate\_positioned} 5,
+\texttt{build\_first\_names} 3, \texttt{run\_battery} 8, \texttt{run\_cross\_marker} 6, \texttt{run\_decision\_response}
+6, \texttt{run\_additivity} 7, \texttt{run\_positioned\_maineffect} 7, \texttt{run\_realfield} 5,
+\texttt{run\_reasoning\_flip} 7, \texttt{run\_reasoning\_probe} 7, \texttt{run\_reasoning\_erasure} 7,
+\texttt{validate\_bios\_scrub} 5, \texttt{run\_probe\_curve} 5, \texttt{pilot\_sizing} 5, \texttt{export\_paper\_numbers}
+8. \texttt{runners/} went from 3{,}986 to 4{,}817 lines (provenance, checks and intervals in every runner; the
+lexical control, the held-out wording, the paired scrub comparison), the tests from 731 to 819 (README review map
+and status, CLAUDE.md ``Current state'', layout and running commands updated).
+
+Decided in the session (each recorded in its file's entry): real fields kept in the credit and hiring manifests; hiring
+fixed at 12{,}000 bios before the pilot; the stage design on every essay $\times$ template; A2 on the whole group;
+additivity against the vector sum, read from a three-way residual with a sign-flip test; the reasoning probe and the
+\leace{} test held out in the wording, the \leace{} test without connectives and with a lexical control; the experience
+claim deleted; the scrub check paired against the occupation rule on the manifest's pool, 1{,}000 $+$ 1{,}000 bios;
+the probe-size grid to 500; interval macros in the export.
+
+What changed in behaviour, to know before any run:
+\begin{itemize}
+  \item \textbf{Data.} Generator 0.4.0: every manifest names its data and corpus files by SHA-256 and every runner
+        refuses a file its manifest does not describe --- all data on disk predates it and is refused until
+        regenerated. Hiring is 12{,}000 bios; the decision and reasoning arms read the manifest's pool with its
+        labels.
+  \item \textbf{Results.} Every name carries the model and every non-default setting; every file carries
+        \texttt{meta} (config with the loaded model commit, code commit, data hashes, settings, command line); none is
+        replaced without \texttt{--overwrite}; inputs fail before the model loads; the shared overrides everywhere.
+  \item \textbf{Held-out nulling.} No direction nulls the items it was fitted on (decision, flip: probe records
+        excluded; A2: the in-sample direction removed; real field: leave-one-out and the synthetic direction).
+  \item \textbf{Readings changed:} additivity (the corner sees only the three-way term); the reasoning probe and the
+        \leace{} test (the earlier ``entangled'' result is what the verdicts' surface predicts); the scrub check (the
+        earlier $+0.10$ / $+0.056$ are not established); the pilot sizing (two-way interactions, maximum over models).
+  \item \textbf{Export.} \texttt{export\_paper\_numbers.py --model} reads the new names, exports intervals, skips
+        results without \texttt{meta} and lists the write-up macros an export would break.
+\end{itemize}
+\textbf{Settled from the carry-forward lists} (\texttt{pairs/}, \texttt{probes/}, \texttt{scoring/} sessions): results
+name their commit and data; the battery's per-domain name; the decision arm's overlap with its probe records; the
+ignored \texttt{device} arguments (removed); QRM's gate-fixed column in the decision arm (and the flip); the
+\texttt{probes/} session's edits in \texttt{run\_cross\_marker} and \texttt{run\_reasoning\_erasure}; the
+\texttt{pairs/} items (the positioned generator's limits, the limits repeated in four CLIs, A2's on-the-fly pairs and
+in-sample direction, the cross-marker runner's dropped blocks); the cross-fitting exclusion (verified).
+
+\textbf{Carried forward.}
+\begin{itemize}
+  \item \texttt{cluster/} (session 6): the NOTICE \texttt{review\_site} line; the Dockerfile installs
+        \texttt{requirements.txt} without an upper bound on transformers (the image's torch 2.3 needs $<$5); eager
+        attention's memory on the first 27B run; \texttt{pilot.sh} still uses the old result names, and its 70B lane
+        does not follow amendment (1) (probe curve to 500, 100 $+$ 100 and 50 $+$ 50 records); \texttt{stage.sh}
+        copies tracked files only, so everything changed here must be committed before staging.
+  \item The pilot re-run: regenerate every manifest first; hiring at 12{,}000 bios; A2 on all 622 essays; read
+        offline the intersection-sweep overshoot and the 8B unfair-direction question (the cross-marker
+        \texttt{\_rewards.jsonl}); the scrub check at 1{,}000 $+$ 1{,}000.
+  \item The next export (the exporter lists these): the working notes' two uses of
+        \texttt{\textbackslash eduEthnicityExplicit\{Asap,Persuade\}}; in \texttt{numbers\_manual.tex} the hand-written
+        \texttt{\textbackslash additivityCos*} and the \texttt{\textbackslash markstale} lines of retired macros; the
+        progress notes; the old \texttt{sections/} draft (ask first). The cross-marker design is exported once the
+        headline family is fixed.
+  \item Lint: an unused import in \texttt{probes/cross\_marker\_directions.py} (committed with the \texttt{probes/}
+        review).
+  \item For the user: commit both repositories; delete the orphaned \texttt{\$PFSS/embedding\_cache}.
+\end{itemize}
+
+\subsection*{2026-09-30 --- build: the comparative (two-applicant) arm}
+Built from the design of 2026-09-26, after the reviews it reuses, and \emph{not yet reviewed line by line}: the
+modules \texttt{comparative.py} in \texttt{pairs/}, \texttt{comparative\_metrics.py} in \texttt{scoring/} and
+\texttt{comparative\_directions.py} in \texttt{probes/}; the runner \texttt{run\_comparative.py}; three configs
+(credit, hiring, education) and 50 tests; comparative support in \texttt{pilot\_sizing.py}. Exploratory until the
+headline family is fixed.
+
+\paragraph{Decisions (user, 2026-09-30).}
+\begin{itemize}
+  \item \emph{Education is in}, framed as an allocation: ``a school can give its writing award to only one of two
+        students'' (two essays on the same assignment). Only its config sets \texttt{max\_length: 4096}; the other
+        arms keep 2{,}048 and their cache keys. Measured on the full pool: the longest same-assignment pair is
+        $\approx$2{,}800 tokens (Qwen3, Llama-3.1 and Gemma-2 tokenizers, frame and response included), so no pair is
+        refused. The memory of the 27B models under eager attention at this length is not known yet.
+  \item \emph{Responses: merit and coded.} Each response chooses one applicant by its position label and names the
+        other; the choose-A and choose-B versions differ only by the swapped labels. \emph{Merit}: a comparison of
+        the documents; \emph{coded}: a stereotype-fitting doubt about the other applicant that names no attribute
+        (credit income stability, hiring availability, education authorship). No evasive or ``neither'' response:
+        every prompt holds one protected and one reference applicant, so a symmetric response has no
+        protected-vs-reference contrast by construction.
+  \item \emph{One context per pair and axis}: the two applicants differ in one axis at one setting of the other two,
+        rotated over the pairs of a pairing so the settings balance; plus the intersection corner. 16 prompts per
+        pair (12 for credit proxy, which has no marital-status marker).
+  \item \emph{Directions now: direct and own}; the 3$\times$3 transfer matrix and \leace{} with a non-linear probe
+        on the comparative states later.
+\end{itemize}
+
+\paragraph{As built.} \outdated{revised by the review of 2026-10-01 (next entry): the pool split, the pair order,
+the education frame, the strong--weak statistics and the result names changed.}
+\begin{itemize}
+  \item \emph{Pairs.} Pairings strong--strong, strong--weak (X the strong record) and weak--weak. Which pairing a
+        record may join is fixed per record by a seeded draw (strong: strong--strong 2/3, strong--weak 1/3; weak:
+        weak--weak 2/3, strong--weak 1/3), so balanced strata give the three pairings equal capacity, and a smaller
+        request gives a prefix of a larger one's pairs (the pilot's pairs nest in the main run's). Partners share a
+        match group (hiring: the target role, which the prompt names; education: the assignment; credit: none),
+        share no proxy first name, and every text of the pair must fit \texttt{max\_length}; skipped candidates are
+        counted. Each record is in at most one pair; the direct arm's probe records are never paired; overlap with
+        the cross-marker selection is allowed (it matters only for the future transfer matrix, which needs shared
+        folds).
+  \item \emph{Items.} From the generator's \texttt{cells.jsonl} (hash-checked), the same blocks as the cross-marker
+        design. Per contrast: both marker assignments $\times$ both orders $\times$ 2 kinds $\times$ 2 choices, plus the
+        unmarked prompts (the gate for \texttt{gate\_fixed}, the scale of the scaled effects). Merit and coded are
+        within 2 tokens of each other at every paraphrase on the three tokenizers; every request and response passes
+        the attribute lexicon of the cross-marker design.
+  \item \emph{Metrics} (per pair, then a bootstrap over pairs; per pairing, pooled, and on the unmarked prompts).
+        $\textit{marker effect} = r(\text{choose protected}) - r(\text{choose reference})$, averaged over the two
+        assignments and orders (records and position cancel; negative $=$ the protected applicant disfavoured); the
+        same as a win rate (ties $\tfrac12$); the position effect. Strong--weak adds the quality margin
+        $r(\text{strong}) - r(\text{weak})$, the merit-correct win rate when the strong / the weak applicant is
+        protected and their difference (the overturn), and the exchange rate (mean marker effect / mean quality
+        margin; undefined when the margin is not positive). Coded $-$ merit marker effect per pair. Nulled columns
+        carry the paired change against the baseline.
+  \item \emph{Directions.} The direct arm's per axis and jointly; this design's own ``the chosen applicant is
+        protected'' contrast (the same response under the two assignments), cross-fitted over five folds of pairs
+        stratified by pairing (skipped, with a warning, when the pairs fill one fold); \texttt{gate\_fixed} for gated
+        heads; geometry: cosine own vs direct per axis against its reliability ceiling, head alignment.
+\end{itemize}
+
+\paragraph{Pre-stated sizing rule for the comparative pairs (before any pilot run; confirm with the pilot plan).}
+The records rule of 2026-09-25 carried over to pairs: per domain, encoding and pairing, $n = \lceil((z_{1-\alpha/(2m)} +
+z_{0.80})\, r / \delta)^2\rceil$ with $r = \mathrm{sd}/\mathrm{scale\_sd}$ of the \emph{merit} marker effect,
+binding over the contrast axes and the intersection, maximum over models; $\mathrm{scale\_sd}$ is the SD across pairs
+of the unmarked choice margin. The coded marker effects are listed but size nothing. The ``available'' column is the
+pairing's capacity before the name and length checks (an upper bound). $\delta$ and $m$ come with the headline family.
+Only $\mathrm{sd}$ and $\mathrm{scale\_sd}$ are read.
+
+\paragraph{Verified.} 869 tests pass (819 before), lint clean (the unused import carried forward from the
+\texttt{probes/} review is gone). Two MPS smoke runs on Qwen3-0.6B, plumbing only, numbers not read: credit, 4 pairs
+per pairing, both encodings and templates, 3{,}072 texts, 575\,s; education, 1 pair per pairing, explicit, one
+template, 216 texts of $\approx$3{,}000 tokens, 142\,s of scoring. The tiny test models cannot show the own
+direction: their last-token state does not register a marker swap $\approx$600 tokens back (the contrast is exactly
+0 even in float32; 0.17 on a 15-token input), so the direction is checked on synthetic states.
+
+\paragraph{Carried forward.}
+\begin{itemize}
+  \item Review the new code (the four modules, the configs, the \texttt{pilot\_sizing} addition).
+  \item \texttt{pilot.sh}: a comparative step per domain (with the \texttt{cluster/} review); credit's weak pool
+        limits strong--weak and weak--weak to $\approx$50--95 pairs each after the probe split.
+  \item The 3$\times$3 transfer matrix (direct / cross-marker / comparative directions on shared record folds) and
+        \leace{} with a non-linear probe on the comparative states (the binding question, RQ3).
+  \item The exporter's comparative macros, with the headline family.
+\end{itemize}
+
+\subsection*{2026-10-01 --- code review of the comparative arm (three independent reviewers)}
+The build of 2026-09-30 (commit 5f9075e) was reviewed line by line by three independent reviewers (subagents), one per
+work package: A the design layer (\texttt{pairs/comparative.py}, the \texttt{CellBlock} change), B the statistics and
+directions (\texttt{scoring/comparative\_metrics.py}, \texttt{probes/comparative\_directions.py}, the
+\texttt{fold\_assignment} change), C the runner, the sizing support and the configs. 31 findings (A 9, B 10, C 12),
+merged into 1 high, 10 medium and a set of low items; all fixed. Verified correct by the reviewers: the marker effect
+cancels the records' differences and the position (derived, and $w\cdot\text{contrast}$ equals the kind-averaged
+marker effect to $4\cdot10^{-7}$); cross-fitting never nulls a pair with its own direction (synthetic-state test);
+the probe records are never paired; the QRM gate is the unmarked prompt's in the same order; the outputs carry ids
+only; \texttt{fold\_assignment} is unchanged for the quality label (200 random trials and the golden test).
+
+\paragraph{Decisions (user, 2026-10-01).}
+\begin{itemize}
+  \item \emph{Equal capacity from the strata.} The fixed 2/3--1/3 split gave credit (564 strong, 239 weak) 139 / 81 /
+        60 pairs (ss / sw / ww). The split probabilities now come from the whole pool's strata (2/3 for the smaller
+        stratum, $2\,\text{small}/(3\,\text{large})$ for the larger, whose surplus stays unused): credit 58 / 81 / 56
+        pairs with 150 probe records, 47 / 60 / 45 with 300; hiring and education are balanced and unchanged.
+  \item \emph{The unmarked prompts are the merit yardstick} (B1, high). The exchange rate divided by the merit margin
+        of the \emph{marked} prompts, which contains the marker whenever its effect depends on which applicant
+        carries it (a penalty on the strong applicant alone gave $-667$ for a true $-1$). It now divides by the
+        unmarked margin, and its interval is reported only when that margin's mean is positive in every bootstrap
+        replicate (otherwise the confidence set is unbounded). The ``accuracy gap'' was not an overturn (it also
+        moves when the marker only hands the strong applicant a win, and equals $2\,\text{pref}-1$): it is replaced
+        by \emph{overturn} $=$ accuracy(unmarked) $-$ accuracy(strong protected) and \emph{rescue} $=$
+        accuracy(weak protected) $-$ accuracy(unmarked), positive $=$ the protected applicant disfavoured.
+  \item \emph{Result names carry every setting changed on the CLI} (\texttt{\_\_\{setting\}-\{value\}}), in this runner
+        and in \texttt{run\_cross\_marker.py}, whose default names (configured runs) are unchanged.
+\end{itemize}
+
+\paragraph{Other changes.}
+\begin{itemize}
+  \item \emph{Pairs no longer depend on the request}: the pool is every record with all blocks of \texttt{cells.jsonl},
+        outside the direct arm's probe split, computed from the manifest whether or not the direct directions are
+        used; the name and length checks run on all blocks, the name check per prompt (encoding and template --- the
+        only place two names meet). \texttt{--encodings}, \texttt{--templates} and \texttt{--directions} change what is
+        scored, not which pairs.
+  \item \emph{Pair order per record.} A pool-wide reshuffle made another probe split re-pair everything (0--2 of the
+        first 50 pairs kept). Each record now has its own order key: the pairs drawn before the first added or
+        removed record are kept, after it the greedy partner search re-pairs part of the pool (probe split 150 $\to$
+        300: 14--18 of the first 50 kept for credit, 32--42 for education). So pilot pairs nest in the main run only
+        if \texttt{probe\_records} is the same.
+  \item \emph{Education frame}: ``a writing competition'', not ``a school'' --- the proxy economic-status clause puts
+        the two students in different schools (A1). Wording: ``Student A's essay argues \dots'', the coded doubt
+        names whose work (``I doubt that Student B wrote their essay without outside help''), credit ``the loan they
+        request''; merit and coded within 15 characters and 2 tokens.
+  \item \emph{Silent failures removed}: incomplete or duplicate reward tables, rows of two encodings or pairings, a
+        missing unmarked prompt, a ``chosen is protected'' row without its counterpart, a proxy block without proxy
+        names, and group labels that collide as strings now raise; bad settings (paraphrases, folds, bootstrap size,
+        pair counts) and missing fields (quality, match field, role) stop before the model loads; a skipped own
+        direction is recorded in the result.
+  \item \emph{Reported}: rates and levels unscaled; the pooled group without a scale (its SD would mix the strong--weak
+        merit shift); throughput (\texttt{embed} and \texttt{mechanism} timed apart); the gate-fixed and joint columns.
+        The states are no longer copied per column (tens of GB at 70B hiring scale).
+  \item \texttt{pilot\_sizing}: refuses two inputs of one kind from the same model and domain; comparative rows carry
+        the pilot's \texttt{probe\_records}. The pre-stated sizing rule is unchanged.
+  \item Tests: 894 pass (869 before), among them the cross-fitting check on synthetic states, an X/Y swap that the old
+        fixture could not detect, the linear-head identity and the assignment-dependent marker effect.
+\end{itemize}
+
+\paragraph{Not changed (design questions noted by the reviewers).} The scale differs in meaning between pairings
+(strong--weak: the spread of the merit margin; ties: of the RM's preference between comparable records); the own
+direction pools the merit and coded contrasts; within a pair the axes share a correlated context; sizing is reported
+per encoding (the maximum over encodings is taken by hand). Outside this package: one hiring biography ends with a
+real person's name and credentials (the \texttt{substrates/} scrub; now inside the comparative prompts too).
+
+\paragraph{Second round (the same reviewers checked the fixes).} All 31 findings addressed (A2 accepted as
+documented: \texttt{probe\_records} is frozen before the main run, so pilot and main pairs coincide). Nine new items,
+all fixed; the user's decisions:
+\begin{itemize}
+  \item \emph{Overturn and rescue are not clean on their own} (B, medium): each compares marked prompts with
+        clause-free ones, so a clause that lowers merit accuracy alike for every group reads as overturn $+\varepsilon$,
+        rescue $-\varepsilon$. Added \texttt{accuracy\_contrast} $=$ accuracy(weak protected) $-$ accuracy(strong
+        protected) $=$ overturn $+$ rescue, the clean protected-vs-reference contrast; the parts are read only with it.
+  \item \emph{Exact quotas} (A, low--medium): the per-record coin flip left credit's pools at 78 / 97 / 71 at seed 42
+        (binomial spread $\approx$7), and the strong surplus sat in the strong--weak anchor pool, so strong--weak
+        always came out largest. Now each stratum is ranked by a per-record draw and exactly
+        $\mathrm{round}(p\cdot n)$ go to the own pairing; the larger stratum's strong--weak side is cut to the smaller
+        one's, the rest unused (credit: 159 / 80$+$80 / 159 records, 325 strong unused; pairs formed 59 / 65 / 63 with 150 probe records, 48 / 48 / 51 with 300). Still a function of the
+        whole pool only.
+  \item Also fixed: completeness against the full product of axes $\times$ kinds $\times$ templates (a gap shared by
+        every pair slipped through); the probe records must be records of \texttt{cells.jsonl} (another id format
+        would exclude none, silently); path-safe name suffixes (\texttt{--revision refs/pr/2}); the sizing tool's
+        duplicate check keyed on model, domain, manifest and encodings (per-encoding pilot runs allowed) and an
+        unrecognised input named before it; the stability figures stated as one measurement; a tighter capacity
+        test; the unmarked block documented as unscaled. 896 tests pass.
+\end{itemize}
 
 \bibliographystyle{plainnat}
 \bibliography{shared/references}
