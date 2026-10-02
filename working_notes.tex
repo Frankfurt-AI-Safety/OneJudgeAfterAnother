@@ -105,7 +105,8 @@ locates where mitigation must live (upstream data governance vs model-internal e
         attribute, or the RM tracking (correct) reasoning / response quality? \outdated{We have evidence it is the
         latter for verdicts (reasoning-flip 2$\times$2 with a non-demographic commute control).} (That run was on the
         synthetic CVs and the MLX prototype, without intervals; re-run with the reviewed runner, 2026-09-29.) Needs
-        to be a stated control, not a footnote.
+        to be a stated control, not a footnote. Since 2026-10-01 the arm runs on all three domains with a control per
+        domain (entries of that date).
   \item \textbf{Brittleness.} RMs react to non-demographic perturbations too; matched pairs must hold all
         non-target variation fixed (our Tier-1 gate).
   \item \textbf{Evasion.} Fairness framing can manifest as non-answers; score for evasion so it does not
@@ -4044,6 +4045,450 @@ all fixed; the user's decisions:
         unrecognised input named before it; the stability figures stated as one measurement; a tighter capacity
         test; the unmarked block documented as unscaled. 896 tests pass.
 \end{itemize}
+
+\subsection*{2026-10-01 --- design: porting the reasoning arm to credit and education}
+The reasoning arm (claim correctness $\times$ conclusion; \texttt{true\_reject} $=$ the sound but discriminatory
+verdict) ran on hiring only. Before it runs on credit and education it needs, per domain, a premise whose claim has a
+truth value of its own. What such a premise must satisfy (the hiring version meets every point once its commute control
+is replaced, below; they fix the choices below):
+\begin{enumerate}
+  \item \emph{The premise entails the claim; it does not merely correlate with it.} ``On parental leave $\to$ less
+        available in the near term'' holds almost by definition. From group membership alone (``a woman'', ``Black'')
+        nothing follows about repayment or writing; any claim is a stereotype and ``true'' is undefined. Sex, marital
+        status and ethnicity therefore cannot carry a premise on their own.
+  \item \emph{The true claim points to the harmful decision}, so \texttt{true\_reject} means the same in every domain.
+  \item \emph{The claim is relevant to the decision.} Otherwise \texttt{true\_reject} measures relevance, not
+        soundness. Pass/fail grading fails here: the essay is written, and nothing about the household changes it.
+  \item \emph{The premise wording matches a factorial pole}, so the domain's direct direction nulls what the premise
+        states (hiring: ``currently on parental leave'').
+  \item \emph{The premise contradicts no rendered record field} (credit renders employment, job, credit history and
+        dependents; the essay records render nothing demographic).
+  \item \emph{The control gives the same consequence through a non-protected cause}, ideally the same predicate, so
+        premise $-$ control isolates that the cause is demographic and not how plausible the claim is.
+\end{enumerate}
+
+\paragraph{Decisions (user, 2026-10-01).} \outdated{revised by the review of the same day (next entry): the hiring
+control is six months of travel abroad, the education control the higher out-of-district fee, the credit premise
+``a 30-year-old'', 13 credit records are not drawn, the hiring control's macros end in \texttt{Abroad} and the education control's in
+\texttt{OutOfDistrictEdu}.}
+\begin{itemize}
+  \item \emph{Credit: age $\to$ credit history.} Premise ``The applicant is 30 years old.'' (the age pole); true claim
+        ``\dots has had fewer years to build a credit history than an older applicant'', false ``more years''; nulled
+        with the \texttt{age} direction. Intersection $=$ the credit factorial's pole-A corner (``a 30-year-old married
+        woman''), grounded through its age component, nulled with the \texttt{intersection} direction. Decision:
+        approve / decline the loan (the credit decision prompt).
+  \item \emph{Credit control: an unpaid sabbatical} (``reduces the applicant's income this year''). Definitional, but
+        its predicate (income) differs from the age claim's (credit history): age $-$ control is a same-relevance
+        contrast, not a matched one. A short credit history without age or migration behind it is rare, and the
+        candidates clash with the rendered history and employment fields. The sabbatical contradicts an unemployed
+        record: the 10 of 564 strong credit records with employment ``none (unemployed)'' are excluded for every
+        credit premise (selection only; the items still read no record field).
+  \item \emph{Education: a fee-charging summer writing program}, not pass/fail grading (point 3). Premise ``The student
+        is from a low-income household.'' (the economic-status pole); true claim ``\dots will make the program harder
+        for the student's family to afford'', false ``easier''; nulled with \texttt{economic\_status}. Intersection
+        $=$ the education corner (``Black, female, and from a low-income household''), grounded through its income
+        component. Control: the student lives several hundred miles from the venue --- the same predicate (afford),
+        a non-protected cause. Decision: offer a place or not. Sex and ethnicity enter only through the intersection.
+  \item \emph{Hiring: the commute control is replaced} by ``about to start a six-month sabbatical'', which reduces
+        near-term availability by definition; the commute did so only weakly, which mixed plausibility into
+        premise $-$ control.
+  \item Exporter: the hiring macro names stay (\texttt{\textbackslash reasonCorrectnessCommute} becomes
+        \texttt{\dots Sabbatical}); credit and education get the suffix \texttt{Credit} / \texttt{Edu}.
+\end{itemize}
+
+\paragraph{Caveats, per premise.} Credit age $-$ sabbatical compares two different predicates. Each intersection
+names the whole identity as the cause, though the claim is grounded only through one component (leave, age, income).
+Age in credit is partly a legitimate risk factor (the length of the credit history enters scoring), so ``sound but
+discriminatory'' is weaker there than for parental leave in hiring.
+
+\subsection*{2026-10-01 --- code review of the reasoning port (three independent reviewers)}
+The port (previous entry) was reviewed line by line by three independent reviewers (subagents): A the items
+(\texttt{pairs/verdicts.py}), B the three runners and their plumbing, C the exporter, configs and documents. No high
+finding; 5 medium or medium--low (the education control, the hiring control, the record pool, the old draft's macro,
+the pipeline appendix) and about 25 low items across the three, all addressed. Verified correct by the reviewers: the record ids of
+the manifests' probe splits are the loaded records' ids in every domain (the probe exclusion works); every input check
+runs before the model loads; the gate-fixed reference is the item prompt without its premise, for every domain,
+template and premise; no held-out pool entry occurs in fitted wording; the intersection clauses are what the generators
+write; the macro sets of the three domains are disjoint; hiring's items are unchanged apart from the control.
+
+\paragraph{Decisions (user, 2026-10-01).}
+\begin{itemize}
+  \item \emph{Hiring control: six months of travel abroad} (``The applicant is about to set off on six months of
+        travel abroad.''), not a sabbatical (A, medium--low): a sabbatical is leave from the current employer and can
+        read as freeing time for a new one, so ``it will increase the candidate's availability'' was not plainly
+        false. (``About to leave for \dots'' was avoided: ``leave'' is the parental-leave premise's word.)
+  \item \emph{Education control: the higher out-of-district fee} (``The student lives outside the program's district,
+        so the higher out-of-district fee applies.''), not the distance to the venue (A, medium): living far away makes
+        the program harder to afford only if the family pays travel, which the prompt does not say --- the
+        plausibility mix the commute was dropped for. Rejected alternatives: a sibling already paying for the program
+        (an older sibling accepted into it may make the younger look more suitable --- a merit cue), and a large
+        unexpected family bill (no application record would carry it; it would read as invented). The fee is an
+        application fact, raises the cost by definition and names no income level.
+  \item \emph{Credit: 13 of 564 good-credit records not drawn}: besides employment ``none (unemployed)'' (10) also the
+        job ``unemployed or unskilled'' (3 more), which reads unemployed next to an unpaid sabbatical (B, C).
+  \item \emph{The old draft keeps \texttt{\textbackslash reasonCorrectnessCommute}} (\texttt{sections/06\_results.tex}):
+        the next export drops the macro and that draft stops compiling, by design; it is not edited.
+\end{itemize}
+
+\paragraph{Other changes.}
+\begin{itemize}
+  \item \emph{The records are the manifest's pool}, checked (B, medium): the corpus hash alone did not prove it (a
+        manifest built with another \texttt{--n-records} or seed passed). All three runners now draw only records of
+        the manifest's \texttt{cells.jsonl}, refuse a pool that lacks one or labels one otherwise, refuse probe records
+        that are not the manifest's, and record \texttt{cells.jsonl}'s SHA-256; the probe and erasure runners read the
+        manifest too.
+  \item \emph{Credit's age premise uses the factorial's wording}, ``a 30-year-old'' (A): the age direction is fitted
+        on ``a 30-year-old married woman'', not ``30 years old''.
+  \item \emph{Result names carry every setting changed on the CLI} in all three runners
+        (\texttt{\_\_n\_items-\dots}, \texttt{\_\_seed-\dots}, probe records, revision), as CLAUDE.md states for every
+        runner; default runs keep their names.
+  \item Wording (A): ``but their finances still justify granting the loan'' (``make the loan sound'' stated no
+        decision); ``a shorter credit history than an older applicant could have''; ``weigh more heavily''. No fitted
+        decision phrase contains a held-out one any more (``but on balance I would approve the loan'' contained the
+        held-out ``I would approve the loan''); a test pins it. Credit's and education's fixed cells are within 2
+        tokens, their decision phrases within 2, each true stem the length of its false stem (equal), and each pair
+        differs in one antonym.
+  \item Smaller: unknown premises raise in every builder; the decision prompt reads \texttt{role} only where it names
+        it; the record guard of \texttt{TestSubstratePortingGap} gives credit and education records no role; tests
+        for the probe exclusion and the eligibility in every runner, both templates of the gate-fixed reference, the
+        held-out split for both premises, the corpus each loader opens. 996 tests pass.
+\end{itemize}
+
+\paragraph{Caveats added.} The control is never nulled, so a nulled premise is read against a baseline control; and
+hiring's \texttt{family\_status} direction contrasts ``on parental leave'' with ``in continuous employment'', so it
+also carries ``away from work'', which six months abroad share. Credit's control (income lost this year) bears on
+repayment more directly than the age claim: a control of the same kind, not of the same strength. Six months of travel
+can also read as a lack of commitment, a second, legitimate-sounding reason to decline that parental leave lacks. The
+education control's verdicts name the cause (``Living outside the program's district will make the program harder
+\dots''), as the demographic premises do, not the fee the prompt already states, which would make the claim true by
+wording alone (second round).
+
+\paragraph{Second round (the same reviewers checked the fixes).} Every finding addressed; nine new low items, all
+fixed: the manifest's pairs are checked before anything reads them; the pool check's other branches (a relabelled
+record, a stray probe id, a corpus record outside the manifest, never drawn) are tested; the education control's
+verdicts name its cause (above); the caveat on six months of travel (above); stale messages and line wraps. 997 tests
+pass. The real-data smoke ran on regenerated 0.4.0 manifests in the scratchpad; \texttt{data/} holds older builds and
+must be regenerated before the pilot re-run, as planned.
+
+\paragraph{For the next export.} The hiring macros keep their names (\texttt{\textbackslash reasonCorrectnessPL},
+\texttt{\textbackslash erasureMlpLeaceCorrPL}, \texttt{\textbackslash erasureLinearLeaceCorrPL}), so the dated notes
+that quote them (\texttt{progress/progress\_2026-07.tex}, \texttt{progress/project\_overview.tex}) would show values
+of the redesigned arm without notice: mark them stale then. The commute macros disappear (\dots\texttt{Commute},
+\texttt{\textbackslash cosCorrectnessPLvsCommute}, \texttt{\textbackslash transferCommuteToPL}\dots); the hiring
+control's macros are now \dots\texttt{Abroad}.
+
+\subsection*{2026-10-01 --- build: the placebo nulling of the reasoning control}
+\textbf{Decided (user, 2026-10-01).} The reasoning flip compared a nulled demographic premise with a control that was
+never nulled. The control is now nulled with every demographic premise's direction in turn (\texttt{placebo}): it
+states nothing demographic, so a direction that moves its 2$\times$2 effects is not removing the attribute but
+disturbing the representation generally. New per demographic premise, paired by record with its bootstrap interval:
+\[ \texttt{nulling\_vs\_control} = (\text{premise nulled} - \text{baseline}) - (\text{control nulled with the same
+direction} - \text{baseline}), \]
+what nulling changes in the premise beyond the same direction's change in the control
+(\texttt{scoring.demographic\_experiment.reasoning\_nulling\_contrast\_intervals}; also with the gate fixed for QRM).
+Premise and control also differ in non-demographic words, so this is not the attribute's effect by construction. Read
+on the reward effects (\texttt{correctness\_effect}, \texttt{gap\_correct\_minus\_favorable}); the rate's contrast is
+bounded and decided by near-tie noise after nulling, so descriptive only. No extra forward pass: the control's states
+are rescored per direction. Exporter: \texttt{\textbackslash reasonNullingVs\{control\}\{premise\}\{suffix\}}
+(correctness effect, free gate; whether QRM's headline is the gate-fixed column is decided with the headline family).
+
+Caveat: the placebo is not clean where a direction also carries the claim's content, which the control shares ---
+hiring's \texttt{family\_status} and \texttt{intersection} directions (``on parental leave'' vs ``in continuous
+employment'': away from work, the availability claim's content, shared by six months abroad), education's
+\texttt{economic\_status} and \texttt{intersection} directions (low- vs middle-income: money, the ``afford'' claim's
+content, shared by the higher fee). Where that shared part moves premise and control alike, the contrast is biased
+toward 0: one clearly away from 0 still says nulling acts on the premise beyond the control; one near 0 is weak
+evidence that the direction is non-specific. (Reviewed the same day by one independent reviewer: no arithmetic,
+pairing or leakage error; this caveat, the wording above, two stale docstrings and tests that checked the arithmetic
+only on zero effects were fixed --- the end-to-end test now checks it on the gated tiny model's non-zero effects, free
+and fixed gate, and a unit test with per-record changes shows the pairing.)
+
+Also decided: the pilot is the test run of every planned experiment, the comparative arm and \emph{cross-domain
+transfer} included. The reasoning probe's transfer is within a domain (the control's correctness direction nulling the
+demographic premise); within hiring and education the two share the claim's wording pools, so a transfer there is
+partly lexical. Cross-domain transfer (a direction fitted on one domain nulling another's items: claim, decision and
+record all differ) is to be built before the pilot. 998 tests pass.
+
+\subsection*{2026-10-01 --- build: cross-domain transfer of the reasoning directions}
+\textbf{Decisions (user, 2026-10-01).} Before the pilot (which test-runs every planned experiment): a direction of a
+domain is fitted on both its premises pooled (demographic and control); fit sources are each domain and the other
+domains pooled (leave one domain out); every cell has a bag-of-words lexical control; exporter macros wait for the
+pilot; the comparative arm's 3$\times$3 placement matrix is built next, also before the pilot.
+
+\paragraph{As built.} \outdated{redesigned after its review the same day (next entry): no connective, a
+favourable-truth premise, valence-balanced fits, three wording folds.} \texttt{runners/run\_reasoning\_transfer.py} loads one model and takes one reasoning config per
+domain (all naming that model). Per domain the items are exactly the reasoning probe's (same records, split, seed and
+paraphrases), so after it on the same embedding cache no forward pass is new. Per (source, evaluated domain, its
+premise, concept), on the evaluated domain's held-out eval split (its records and its wording, entry 2 of every pool):
+paired accuracy of the source's direction (record-bootstrap interval); the same on bag-of-words vectors of the
+verdicts, vocabulary and direction from the source's fit split (shared words such as ``reduce''/``increase'' --- in
+hiring's availability claim and credit's income control --- ``not'' and ``more''/``less'' could carry a transfer);
+the 2$\times$2 effects nulled with the source's direction; and off the diagonal the \emph{transfer gap}, the
+evaluated domain's own direction's nulling change minus the source's, paired by record (the placebo's statistic).
+Cosines between the domains' directions. Read: a transfer means more than shared wording only where the model's paired
+accuracy exceeds the words', and nulling with it approaches the evaluated domain's own change (gap $\to$ 0). The
+diagonal is the pooled direction within a domain (the probe runner fits per premise, so its numbers differ).
+1{,}004 tests pass; a local MPS smoke ran (numbers not read).
+
+\subsection*{2026-10-01 --- review of the transfer runner: two confounds of the reasoning directions, redesign}
+Two independent reviewers (runner logic; tests and documents) found the mechanics correct but two high-severity
+problems with what the directions can show; both reach back into the reviewed reasoning probe (my method, not a
+code error):
+\begin{enumerate}
+  \item \emph{The connective gives correctness away.} With ``so''/``but'', correctness $=$ XOR(connective,
+        decision), and the ``so'' and ``but'' pools are worded differently: a bag-of-words control on the decision
+        phrases alone, the claim removed, transferred at 1.00 between domains. The probe's swapped pairs cancel the
+        connective additively, not its interaction with the decision (the erasure test had dropped the connective for
+        this reason on 2026-09-30).
+  \item \emph{Truth and valence were one factor.} By criterion~2 every true claim is the one unfavourable to the
+        applicant, so a generic ``bad for the applicant'' feature would pass as a cross-domain correctness direction,
+        and no word-level control can see it.
+\end{enumerate}
+A third: with one held-out paraphrase entry, every eval item of a premise had the same four verdicts, so the lexical
+control could not vary (a point value with an interval of no width) and the intervals covered records, not wording.
+
+\paragraph{Decisions (user, 2026-10-01).}
+\begin{itemize}
+  \item \emph{No connective} in the reasoning probe, the transfer runner and the erasure test: the decision is a
+        sentence of its own, drawn from one pool for both truth values, so only the claim carries correctness. The
+        flip keeps its fixed connective wording (it measures reward preferences, not directions).
+  \item \emph{A favourable-truth premise per domain} (non-demographic, the control's claim with the other stem true;
+        wordings approved): hiring ``The applicant has no notice period and can start immediately.'' ($\to$ more
+        available), credit ``The applicant has just received a permanent pay raise.'' ($\to$ more income this year),
+        education ``The student lives inside the program's district, so the lower in-district fee applies.'' ($\to$
+        easier to afford). Truth and valence are now crossed across premises; it is not in the flip (its
+        ``so''/``but'' wording assumes a true claim argues for rejecting). In the probe, transfer and erasure test.
+  \item \emph{The held-out wording rotates}: fold $k$ fits on the other two paraphrase entries and evaluates on entry
+        $k$; the headline pools the three folds (each eval item read with the direction fitted without its wording;
+        intervals resample records with all their folds), \texttt{by\_fold} gives the spread over wordings.
+\end{itemize}
+
+\paragraph{As built.} \outdated{revised the same day after its review (next entry): crossed fits, six-entry pools,
+coherence-relative statistics.}
+\begin{itemize}
+  \item Reasoning probe: three premises (demographic, control, favourable-truth); a third concept, \emph{valence}
+        (favourable minus unfavourable claim, the conclusion held), beside correctness and conclusion; paired
+        accuracy pooled, per fold and per pair kind; within-domain transfer between every pair of premises. The
+        decisive check: the control's correctness direction on the favourable-truth premise (the same claim, opposite
+        truth) keeps its paired accuracy above $\tfrac12$ if it is correctness and falls below if it is valence.
+  \item Transfer runner: a domain's direction is valence-balanced (the mean pair difference of the two
+        unfavourable-truth premises and that of the favourable-truth premise, averaged); a non-demographic source per
+        domain (control and favourable-truth premise only), as the sensitivity run the reviewer asked for (a
+        premise $\times$ claim interaction such as ``a negative claim about a protected group'' could otherwise ride
+        along); \texttt{others} averages the other domains' unit directions, so each weighs the same. The lexical
+        control is a point value per fold (the verdicts read no record field), with no interval. The result name
+        carries the domain set; configs that differ in a setting read from the first one only are refused; the
+        loaded commit is recorded for every config. A transfer gap is read only where the evaluated domain's own
+        nulling change differs from 0.
+  \item Erasure test: three premises, three concepts (valence added), the folds pooled through
+        \texttt{probes.erasure.recoverability\_summary} (split out of \texttt{probe\_recoverability}); its lexical
+        control likewise has no width within a fold. Its claim that the lexical control sits at chance under held-out
+        wording without a connective is now tested in every fold and domain.
+  \item 1{,}046 tests pass; a local MPS smoke ran (numbers not read).
+\end{itemize}
+
+\subsection*{2026-10-01 --- review of the redesign: valence within a premise, single held-out wordings, second redesign}
+The first redesign (previous entry) was reviewed by three independent reviewers (items and statistics; probe and
+erasure runners; transfer runner, exporter and documents). The mechanics held (no held-out wording leaks into fitted
+wording; the valence labels, interval signs and fold pooling are right); five problems with what the numbers can show:
+\begin{enumerate}
+  \item \emph{Valence within one premise is a relabelling of correctness}: its pairs are the correctness pairs, or
+        their reverse, so every per-premise valence row, and a third of the erasure test's fits, repeated correctness.
+  \item \emph{One held-out entry per fold}: every eval item of a premise had the same four verdicts; the intervals
+        rested on twelve verdict texts, and the lexical control was decided by which entries the fit records had drawn
+        (a valence-balanced word direction cancels in expectation, so what was left was that noise, blown up to unit
+        length: per-fold values of 0 or 1 by chance).
+  \item \emph{Leaks of word and length}: credit's ``more'' carried correctness from fitted into held-out wording (a
+        bag-of-words probe at 1.00 on one fold); hiring's unfavourable stems were 1--3 tokens longer than the
+        favourable ones (``near-term'', ``soon''), so length went with valence, which biased exactly the valence check.
+  \item \emph{The valence check had three outcomes, not two}: about $\tfrac12$ is a mix of truth and valence, or no
+        transfer between premises at all; there was no positive control.
+  \item \emph{The 2$\times$2 statistics kept their unfavourable-truth meaning on the favourable-truth premise} (the
+        interaction there rewarded incoherence; the headline pair compared two incoherent cells).
+\end{enumerate}
+
+\paragraph{Decisions (user, 2026-10-01).}
+\begin{itemize}
+  \item \emph{Crossed fit}: the probe and the erasure test fit correctness and valence on the control and the
+        favourable-truth premise pooled with equal weight (opposite truth, so valence cancels from correctness and
+        truth from valence), evaluated on every premise; the per-premise valence rows are gone (per premise:
+        correctness and conclusion only).
+  \item \emph{Six-entry pools}: every claim and decision pool has six paraphrases; each fold fits on four and holds two
+        out, so the held-out wording varies within a fold. Each entry's true and false stems differ in one antonym of
+        its own (no separating word recurs across a claim's entries, nor across credit's two claims), with equal token
+        counts on the three tokenizers; hiring's favourable stems gained ``near-term'' and ``soon''. The lexical
+        control is fitted on the \emph{expected} bag-of-words of the fitted wording (no draw noise; exactly $\tfrac12$
+        where valence balancing cancels the words).
+  \item \emph{Coherence-relative statistics}: the interaction rewards the conclusion that follows from the claim on
+        every premise; the correct-but-harmful headline pair exists only where the true claim is unfavourable.
+\end{itemize}
+
+\paragraph{Other changes.} The valence check of each unfavourable-truth premise's correctness direction has a
+positive control (the other unfavourable-truth premise) and an inconclusive branch; the varied connective wording was
+deleted (the flip keeps its fixed one); pooled records are checked to be the same records in every fold; the pooled
+nulling change is stated as the effect of the cross-fitted procedure, with fold-to-fold cosines; the erasure test
+trains once per fold and concept and skips the per-fold bootstraps it discarded; the transfer runner computes each
+baseline once, reuses the own direction's rewards, compares \texttt{n\_boot} by value, and moves its source
+bookkeeping to tested functions; credit's balanced direction keeps a valence residual (two claims against one), so
+\texttt{credit:nondemographic} is its clean source; the exporter skips probe and erasure results of an older design.
+The words alone now sit at chance both ways (without erasure and after LEACE) on held-out wording in every fold,
+premise and domain (tested). 1{,}027 tests pass (parametrised tests of the removed connective wording went).
+
+\paragraph{Second round (the same reviewers checked the fixes).} Every finding of the first round addressed. New:
+\begin{itemize}
+  \item \emph{The crossed erasure training opened an XOR route} (B, high): pooled over the control and the
+        favourable-truth premise, correctness $=$ valence XOR premise, and LEACE on correctness alone leaves both, so an
+        MLP rebuilds correctness from them --- in the reviewer's simulation a model with no truth code at all read
+        ``entangled'' (0.97). \textbf{Decided (user): joint LEACE}: correctness and valence are erased together (the
+        library takes several labels), conclusion alone; a synthetic test reproduces the false positive and shows it
+        closed. The MLP is a majority vote of three seeds (one early-stopped fit missed an XOR another found).
+  \item \emph{A row is read only where the concept is decodable without erasure} (B): the demographic premise is never
+        trained on, so there an MLP at chance after LEACE may only mean the probes do not transfer (each row carries a
+        \texttt{verdict}).
+  \item \emph{Separating words recurred across domains} (A): ``more'', ``fewer'' and ``smaller'' at different entry
+        indices carried valence by words into the credit source's transfer (lexical control 0.25--0.79). Every
+        separating word now occurs at one entry index only, in any claim (entry 0's ``reduce''/``increase'' is shared
+        by two claims at the same index, which a fold fits or holds out together), and in no subject, clause or
+        decision; tested. Hiring's entries 3 and 5 were not entailed by ``no notice period'' (``extra free weeks'', ``the
+        time the candidate can give'') and now speak of the start date; credit's entry 5 states a bound (``a thinner
+        possible record \dots could have''); income ``depress/lift'', ``dent/bolster''; credit ``This loan should (not)
+        go ahead''. Every domain's fixed cells are now within 2 tokens.
+  \item Smaller: the erasure runner checks the applicants are the same in every premise and fold; tests of the
+        per-premise slicing, of fold-list intervals (a record one cluster), of the expected lexical vectors against a
+        direct mean; the exporter no longer lists a design-skipped file as a source; the transfer's reading rule (a
+        valence-balanced source reads $\tfrac12$ under a pure valence code; the residual is the difference between the
+        unfavourable- and favourable-truth rows) and its lexical control's interval (the held-out wording varies within
+        a fold) recorded here. 1{,}033 tests pass.
+\end{itemize}
+
+\subsection*{2026-10-01 --- design: the placement matrix (demographic directions across the three placements)}
+The marker sits in three places: in the scored response (direct scoring, D), in the user turn with an
+attribute-free decision as the response (cross-marker, X), and in a user turn holding two applicants with a response
+that chooses one (comparative, C). Each arm already nulls the direct arm's direction, and X and C their own, but on
+different records with different folds, so no two cells could be compared; X$\to$C, C$\to$D and C$\to$X did not exist.
+The matrix asks, per placement pair: does the bias one placement produces live along the direction another
+placement found? Built before the pilot (user, 2026-10-01: the pilot test-runs every planned experiment).
+
+\paragraph{Decisions (user, 2026-10-01).}
+\begin{itemize}
+  \item \emph{One record set, one fold assignment.} The records are the comparative arm's pairs, drawn by the same
+        calls as \texttt{run\_comparative.py} (so its texts are embedding-cache hits), and the folds are its pair folds
+        (stratified by pairing). Each record takes its pair's fold (a record is in at most one pair); X and D are
+        scored on the paired records. A direction fitted outside fold $f$ nulls fold $f$ in all three placements, so
+        no item is nulled by a direction that saw its record. Within an encoding only (explicit on explicit, proxy on
+        proxy); the axes are the comparative contrast axes plus the intersection corner.
+  \item \emph{Rows: a clean 3$\times$3 plus two side rows.} The matrix that is read: \emph{D shared} (the direct
+        contrast, marker in the response, re-fitted on the paired records), \emph{X interaction} (the part of the
+        state that produces the decision disparity) and \emph{C own} (``the chosen applicant is protected'', which
+        produces the marker effect) --- same records, same $n$, same folds, so a gap between a transferred and an own
+        direction is about the placement, not the sample (a direction fitted on fewer records is noisier and removes
+        less even when the signal is shared; cosines have a ceiling for this, nulling effects do not). Side rows,
+        exploratory and outside any headline: \emph{D probe} (the arms' direction, fitted on the manifest's probe
+        split, disjoint from the pairs by construction: the link to the arms' \texttt{null\_direct} results) and
+        \emph{X prompt} (the attribute of the person judged, which shifts approve and decline alike: does the
+        attribute transfer, or only the decision-producing part?).
+  \item \emph{Readout per cell}: the target's signed effect at baseline and nulled, the change (nulled $-$ baseline)
+        and the \emph{gap} (the target's own change $-$ this row's change), each with a 95\% interval from one
+        bootstrap over pairs shared by every cell of an encoding, so differences between cells have paired intervals.
+        The diagonal's gap is 0 by definition. Target effects: D the direct gap $r(A)-r(B)$ over the paired records;
+        X the decision disparity on the strong records (the cross-marker headline group); C the merit marker effect,
+        pairings pooled. A direction is read against its own axis's effect only.
+  \item \emph{Gated heads (QRM): both, gate-fixed first.} Every cell is computed with each row's own gate (as the arms
+        do) and with the gate of the unmarked prompt held fixed, read against the \texttt{gate\_fixed} baseline: the
+        projection acts on the last-token state only, so the gate-fixed matrix is the clean transfer reading.
+\end{itemize}
+
+\paragraph{Defaults (no objection).} X is scored with the approve and decline responses only (all the disparity and the
+interaction direction need; 18 texts per record instead of 45), with the cross-marker arm's paraphrase setting so its
+texts are cache hits; X and D texts longer than \texttt{max\_length} are refused, not dropped (dropping would change the
+pairs). About $0.7\times$ a comparative run once the comparative texts are cached. Not in this build: cross-encoding
+transfer, joint-axis nulling, \leace{} on the comparative states, the \texttt{pilot.sh} step and the exporter's macros
+(after the pilot).
+
+\subsection*{2026-10-01 --- build: the placement matrix}
+Built from the design above, \emph{not yet reviewed}: \texttt{run\_placement\_matrix.py} in \texttt{runners/} and
+\texttt{placement\_matrix.py} in \texttt{scoring/} (ratios of sums over pairs, the shared draws, change and gap), plus a
+per-record axis effect in the cross-marker metrics (the decision disparity, or with no margin the direct gap). It runs
+on the comparative configs; the pairs come from the comparative arm's own functions and settings (a test runs both
+runners and compares pairs and folds). Each encoding's three placements are embedded once; every row's direction is
+fitted per fold outside the fold (\texttt{d\_probe}: the same in every fold) and every placement's fold-$f$ items are
+nulled with it. Result \texttt{placement\_\{domain\}[\_\{folder\}]\_\{model\}.json} with ids, labels and numbers only.
+
+\paragraph{Verified.} 1{,}066 tests pass (1{,}033 before), lint clean. Two planted-signal worlds on synthetic states
+(the tiny test models do not register a marker swap): one direction shared by the three placements $\to$ every row of
+the read matrix removes each target's effect (gap $<5\%$ of the baseline); three orthonormal directions, each read by
+the head alike $\to$ only the own row removes it, the transferred rows change it by $<5\%$ and their gap equals the
+baseline. Further tests: no item is nulled by a direction fitted on its record (each fold's direction recomputed from
+the other folds and the nulled rewards reproduced, three folds), the cross-marker texts equal the cross-marker arm's,
+the gate references of a gated head, the paired gap interval (two rows whose changes differ by a constant in every
+pair have a zero-width gap interval). MPS smoke on credit (Qwen3-0.6B, 2 pairs per pairing, plumbing only, numbers not
+read): the pairs equal the comparative run's, every comparative text was an embedding-cache hit.
+
+\paragraph{Next.} The review (three independent reviewers, then a second round), on the user's go-ahead.
+
+\subsection*{2026-10-01 --- code review of the placement matrix (three independent reviewers)}
+Three reviewers (Sonnet 5, at the user's request), one package each: the statistics; the directions, nulling and gates;
+the runner's inputs, outputs, tests and docs. No high finding: no item is nulled by a direction that saw its record,
+the pairs and folds are the comparative arm's, and the targets equal the arms' own definitions (checked on a real
+credit manifest).
+
+\paragraph{Decisions (user, 2026-10-01).}
+\begin{itemize}
+  \item \emph{An oriented shortfall next to the gap.} The gap's sign follows the baseline's, so gaps across cells with
+        mixed-sign baselines were easy to misread. Every cell now also carries the \emph{shortfall}
+        $=-\mathrm{sign}(\text{baseline})\times\text{gap}$, the sign fixed by the full-sample baseline: positive means the
+        row removed less than the target's own direction, whatever the baseline's sign. When the baseline's interval
+        covers 0 the orientation is unreliable (\texttt{orientation.baseline\_ci\_covers\_zero}). (The first
+        implementation multiplied by $+\mathrm{sign}$; its new test caught it.)
+  \item \emph{Education: documented, no code change.} The matrix checks the cross-marker and direct texts against the
+        comparative config's \texttt{max\_length} (4{,}096 for education; the cross-marker config has 2{,}048). The
+        cache key holds \texttt{max\_length}, so education's cross-marker texts are embedded anew (compute only: inputs
+        are refused, never truncated, so the states are the same), and no single-essay input exceeds $\approx$1{,}500
+        tokens, so no record is accepted that the cross-marker arm would refuse.
+  \item \emph{Rewards streamed per encoding} into a partial file renamed at the end (the JSON is written last), which
+        halves the peak memory (pilot size $\approx$220k rows, up to $\approx$45 columns for QRM).
+  \item \emph{The geometry's mean effective head (gated heads) weights each placement once}, not each row (the
+        comparative placement has most rows).
+\end{itemize}
+
+\paragraph{Other changes.} The gate-fixed matrix is listed first, as decided in the design (it came second); the
+pairs, folds and text lengths are checked before the probe directions' forward pass; a target without items (e.g.\ no
+strong record) logs a warning and reads NaN; the paraphrase default's source is documented (the cross-marker runner's
+code default, 3, which every cross-marker config uses). New tests: the per-pair counts of each target (D 2, X 0--2 by
+pairing, C 1), the gate-fixed nulled columns numerically, a planted shared-direction world under a gated head with a
+gate per prompt (removed by every row once the gate is fixed), the pairs and folds against the comparative arm under
+CLI overrides, the warning, the geometry's weighting. Not changed: per-fold direction variability is not in the pair
+bootstrap (as in every arm; a known limitation); the many small head calls (cheap; revisit if the cluster timing
+exceeds the estimate). 1{,}074 tests pass; the MPS smoke (both encodings) writes every row and leaves no partial file.
+The second review round was skipped (user, 2026-10-01: run the pilot).
+
+\subsection*{2026-10-01 --- \texttt{cluster/} revised for the pilot re-run (the test run of every experiment)}
+The user skipped a separate review round for \texttt{cluster/} to run the pilot overnight; the workspace now has
+4 A100s (2 before), so the three model lanes run in parallel (0.6B, 8B, 70B on two GPUs). What changed:
+\begin{itemize}
+  \item \emph{Provenance.} The staged copy holds the tracked files without \texttt{.git}, so every cluster result
+        would have named no code commit. \texttt{stage.sh} now refuses a working tree that differs from
+        \texttt{HEAD} (uncommitted or untracked files) and writes \texttt{STAGED\_COMMIT}, which
+        \texttt{pairs.manifest.code\_provenance} reads when git is unavailable (\texttt{"source": "staged"}).
+  \item \emph{Data are regenerated on the cluster}, never staged: \texttt{prepare\_data.sh} runs every generator from
+        the staged raw corpora (credit; hiring at 12{,}000 bios; education; the grade-level stage design; A2
+        plausible and implausible, 622 essays each) and \texttt{check\_data.py} checks each manifest (present, generator
+        0.4.0, generated by the staged commit); \texttt{pilot.sh} refuses to start otherwise.
+  \item \emph{\texttt{pilot.sh}}: part~1, sizing (the steps the pre-stated rules read): the probe-size curve to 500,
+        the cross-marker design (full credit and education pools, hiring 600 $+$ 600; 70B: amendment (1),
+        100 $+$ 100 and 50 $+$ 50) and the comparative design (the configured 150 pairs per pairing; 70B: 50, education
+        25) per domain. Part~2, a test run of every other experiment: the placement matrix, the reasoning arm (flip,
+        probe, erasure per domain; the transfer), the battery (per domain, the stage design, A2 on both positioned
+        manifests), A2's main effect, the decision floor (both encodings), additivity, the real-field check and the
+        scrub check (1{,}000 $+$ 1{,}000). Lane \texttt{small} runs part~2 at the configured sizes (the full-scale
+        dress rehearsal), \texttt{8b} and \texttt{70b} reduced (timings and plumbing). Nothing in part~2 sizes
+        anything. A new lane \texttt{smoke} runs every step at a tiny size ($\lesssim$1\,h) before the big lanes.
+  \item Dockerfile: \texttt{transformers<5} (the image's torch 2.3), asserted at build; NOTICE: the review-site line
+        replaced by the decision-format arms; the cluster README's staging, data, pilot and GPU-limit sections.
+\end{itemize}
+The comparative pilot sizes for the 70B lane (50 / 25 pairs per pairing) are a choice made here, not part of
+amendment (1), which predates the comparative arm: enough pairs for the sizing rule's per-pair SDs
+(relative precision $\approx\pm$10\% at 50).
 
 \bibliographystyle{plainnat}
 \bibliography{shared/references}

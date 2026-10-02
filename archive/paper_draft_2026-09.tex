@@ -1,0 +1,34 @@
+% ARCHIVED 2026-10-02: the earlier, LLM-assisted paper draft (it was main.tex). Not the submission and not
+% extended: the FAccT paper is written by hand in a separate Overleaf project. main.tex is now the collaborator
+% handout. This file still compiles FROM THE REPO ROOT (it inputs sections/*.tex and appendix/ by root paths):
+%   latexmk -pdf -interaction=nonstopmode -outdir=build archive/paper_draft_2026-09.tex
+\documentclass{article}
+\input{shared/macros}
+
+\title{One Judge After Another:\\ Mechanistic Fairness of Protected-Attribute Bias in Language Reward Models}
+\author{Cedric Kopp \and Camilo Thorne \and Anne Lauscher \and Frankfurt AI Safety --- Reward-Model-Bias Working Group}
+\date{Draft --- \today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\input{sections/00_abstract}
+\end{abstract}
+
+\input{sections/01_intro}
+\input{sections/02_related}
+\input{sections/03_method}
+\input{sections/04_pipeline}
+\input{sections/05_experiments}
+\input{sections/06_results}
+\input{sections/07_discussion}
+\input{sections/08_conclusion}
+
+\bibliographystyle{plainnat}
+\bibliography{shared/references}
+
+\appendix
+\input{appendix/A_pipeline}
+
+\end{document}
