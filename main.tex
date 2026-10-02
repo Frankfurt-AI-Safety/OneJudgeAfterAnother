@@ -23,9 +23,9 @@
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 
 \title{\vspace{-1.2cm}One Judge After Another\\[2pt]
-  \large Protected-attribute bias in language reward models --- the planned experiments}
+  \large Protected-attribute bias in language reward models}
 \author{Cedric Kopp \and Camilo Thorne \and Anne Lauscher \and Frankfurt AI Safety --- Reward-Model-Bias Working Group}
-\date{Project overview for collaborators --- status of \today}
+\date{Project overview --- status of \today}
 
 \begin{document}
 \maketitle
@@ -79,7 +79,6 @@ it stays recoverable in the representation?} The work is inference and linear al
 Table~\ref{tab:rqs} maps each question to the experiment that answers it (\S\ref{sec:design}) and to where it stands.
 \begin{table}[!t]\small
 \caption{The research questions, the experiments that answer them, and their status.}\label{tab:rqs}
-\vspace{-4pt}
 \begin{tabularx}{\linewidth}{@{}lYYl@{}}
 \toprule
  & \textbf{Question} & \textbf{Answered by} & \textbf{Status}\\
@@ -103,7 +102,7 @@ RQ6 & Is the bias data- or architecture-driven? & eleven RMs with controlled com
 \bottomrule
 \end{tabularx}
 \end{table}
-
+\newpage
 \section{Experimental design}\label{sec:design}
 \subsection{Substrates}
 Real records, so every item has a quality label and the attribute is the only manipulated content.
@@ -215,7 +214,7 @@ All runs go on the hessian.AI~42 cluster (A100 80\,GB; the 70B models on two car
         ACM FAccT.
 \end{tight}
 
-\section{Where collaborators could contribute}
+\section{Potential further research improvements}
 \begin{tight}
   \item \textbf{From evaluator to policy.} Does a debiased RM yield a less biased policy? The projection is a pure
         function of the hidden state, so the nulled RM is a drop-in reward for PPO; a matched two-arm design (raw
@@ -226,7 +225,7 @@ All runs go on the hessian.AI~42 cluster (A100 80\,GB; the 70B models on two car
   \item \textbf{Further attributes}: disability (statable, deferred); religion and sexual orientation (exploratory:
         explicit markers are unnatural on these documents, proxies are noisy).
   \item \textbf{RQ0}: the base paper's own biases through the \leace{} test --- a contribution back to the method.
-  \item \textbf{Human validation} of the coded responses and the standpoint sentences.
+  \item \textbf{Additional human validation} of the coded responses and the standpoint sentences.
 \end{tight}
 
 \label{end-of-content}   % its page in build/main.aux = the content's length (target: 4)
