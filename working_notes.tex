@@ -4490,6 +4490,59 @@ The comparative pilot sizes for the 70B lane (50 / 25 pairs per pairing) are a c
 amendment (1), which predates the comparative arm: enough pairs for the sizing rule's per-pair SDs
 (relative precision $\approx\pm$10\% at 50).
 
+\subsection*{2026-10-02 --- design: \leace{} $+$ non-linear probe on the demographic directions (RQ3)}
+Until now \leace{} has run only on the reasoning concepts, so the reward-vs-representation claim is scoped to them.
+This test runs on the protected attributes themselves. \textbf{Decided (user, 2026-10-02):} (1) the direct arm's
+states first (marker in the response; the 2026-09-24 decision kept that arm for RQ3); the cross-marker and
+comparative states come later on the same core; (2) the intersection enters as an extra erasure of every cell and as
+interaction concepts (below); (3) every row also reports the reward side.
+
+\paragraph{States.} Per domain and encoding, every block (record $\times$ template) of the manifest's
+\texttt{cells.jsonl}: its 8 factorial cells, formatted as the direct arm formats them (assessment prompt, document as
+the response), embedded once. A state's label for each concept comes from its cell. Training: the battery's own
+probe records (same \texttt{probe\_records}, same split), so the diffmean row with explicit markers is exactly the
+battery's direction; at 150 records $\times$ 2 templates $\times$ 8 cells $=$ 2{,}400 states (the sizing note's
+number). Evaluation: held-out records (default 200, seeded, none in any direct probe split), intervals clustered by
+record.
+
+\paragraph{Concepts.} Each axis, labelled 1 at pole A (the battery's side A); proxy encoding: the axes with a proxy
+only. Each pair of those axes as an \emph{interaction} concept, labelled 1 where both factors sit at the same pole
+(XNOR): it is orthogonal to the main effects in the balanced factorial, so a linear probe that reads it means the
+states carry an interaction component of their own.
+
+\paragraph{Rows} (linear probe and MLP, the MLP a majority vote of three seeds, as in the reasoning test):
+\texttt{none}; \texttt{diffmean} (our projection); \texttt{leace} (the concept alone); \texttt{leace\_cells}
+(\leace{} on all 7 contrasts of the 8 cells jointly --- the three axes, three two-way and the three-way products ---
+after which no linear function separates any cell from another). Reading, only where the concept is decodable
+without erasure: the MLP after \texttt{leace} above chance $\Rightarrow$ non-linearly recoverable (entangled); if that
+recovery disappears under \texttt{leace\_cells}, it ran through the other factors (the attribute is encoded in
+interaction with them: intersectional); if it survives, it is non-linear beyond the cell structure (e.g.\ depending on
+the record's content).
+
+\paragraph{Held-out names (proxy).} A class of proxy states is a union of 10 names (education: four pools of 10), the
+artifact the reasoning test hit with its phrasings: after \leace{} a non-linear probe can map each seen name to its
+label. Proxy rows are therefore cross-fitted over five name folds: each fold holds out 2 names of every pool (seeded),
+trains on the training states without them and evaluates the eval states that carry them; pooled, every eval state is
+scored once. Explicit markers are one wording per pole (single fit).
+
+\paragraph{Lexical control.} The same pipeline on bag-of-words vectors of each state's marker clause (the only text
+that differs between a block's cells; record content is constant within a record and balanced over the labels). With
+explicit markers it is at chance after \leace{} by construction; with proxy names the held-out names are outside its
+vocabulary.
+
+\paragraph{Reward side (RQ3's reward-scalar half).} On the same eval states: the signed reward gap per record (mean
+over label-1 states $-$ label-0 states; for an interaction half the difference-in-differences) without erasure, after
+diffmean and after each \leace{} (the head on the erased state; QRM with its gate, which is the same for every cell
+here since the prompt does not vary), each with its record-clustered interval and its paired change from
+\texttt{none}. A row where the reward gap is gone and the MLP still recovers the concept is the
+reward-vs-representation gap, directly.
+
+\paragraph{Build.} \texttt{runners/run\_demographic\_erasure.py} on the direct configs; \texttt{pool\_folds} and
+\texttt{erasure\_verdict} move from the reasoning runner to \texttt{probes/erasure.py} (shared); a \texttt{pilot.sh}
+step per domain; exporter macros after the pilot. Cost: per (domain, encoding) one forward pass of
+$\approx$5{,}600 texts (cache hits after the battery), then CPU: up to $\approx$900 MLP fits for hiring (proxy: five
+folds); measured on the smoke.
+
 \bibliographystyle{plainnat}
 \bibliography{shared/references}
 \end{document}
