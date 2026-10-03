@@ -21,21 +21,17 @@ low- or high-complexity in the model's activations; can mechanistic reward shapi
 that removal \emph{robust} --- or does the bias only get cleaned from the reward scalar while remaining
 entangled in the representation and leaking back under new conditions?
 
-\subsection{RQ0 --- Replication, and re-testing the base paper's own complexity claims}
-Two limbs. \textbf{(a)} Do the base-paper low-complexity interventions (length, uncertainty, position)
-reproduce on the eleven \RMs{}, with RewardBench-2 non-inferiority \citep{fein2026onebias}? \textbf{(b)}
-Apply \leace{} $+$ non-linear-probe (\taco{}) to the base paper's \emph{own} identified biases (the
-``low-complexity'' length/uncertainty/position and the ``high-complexity'' sycophancy/model-style): does
-\nullspace{} remove the concept from the \emph{representation}, or only its contribution to the reward
-\emph{scalar}? I.e.\ re-run the base paper's low/high-complexity classification under the stronger
-erasure/recoverability test, and check the reward-vs-representation gap for the spurious biases too ---
-not just the demographic ones. (This makes our robustness check a contribution back to the base method.)
+\subsection*{RQ0 --- dropped (decided 2026-10-02)}
+The replication of the base paper's interventions and the \leace{} re-test of its own (length, position,
+uncertainty, sycophancy, style) biases are not part of the project: they are not the focus of a FAccT paper on
+protected attributes. The accuracy guardrail they shared with RQ4 stays, under RQ4. (The former text is in the
+git history of this file.)
 
 \subsection{RQ1 --- Prevalence: which protected attributes are inherited?}
 Which EU-protected attributes does an \rewardmodel{} exhibit a measurable bias for when scoring
 otherwise-identical high-risk decision content across three Annex-III domains --- recruitment
 (CV screening), credit scoring, and education (grading student assignments/tests)? Measured on
-matched-pair contrastive items under explicit and proxy encodings, across the eleven \RMs{}. We report
+matched-pair contrastive items under explicit and proxy encodings, across the ten \RMs{}. We report
 magnitude and removability, not a betted direction. \emph{Since 2026-09-24} (methodology decision in the log):
 the behavioural answer rests on the cross-marker decision design --- the disparity of the decision margin
 $D = r(\text{approve}) - r(\text{decline})$ between protected and reference cells of the same record, and
@@ -88,13 +84,13 @@ arm) remove the disparity when the marker is in the request (cross-marker design
 carries the disparity at all (the exact decomposition $-(w\cdot u)(\Delta_\text{int}\cdot u)$, log stage 4)?
 
 \subsection{RQ6 --- Cross-model consistency: dataset- vs architecture-driven}
-Is the bias --- magnitude and low/high-complexity class --- consistent across the eleven \RMs{}, or does it
+Is the bias --- magnitude and low/high-complexity class --- consistent across the ten \RMs{}, or does it
 vary by model? Our set is a natural experiment with the controlled comparisons built in: the Skywork-V2
 models share Skywork's preference data but differ in base architecture/size (Llama-3.1-8B, Qwen3-8B,
 Qwen3-0.6B, Gemma-2-27B), the AllenAI RB2 pair holds the recipe fixed across 8B and 70B (a clean size
-comparison), the two Nemotron-32B models hold the recipe fixed across base generations, and
-OpenAssistant-DeBERTa (encoder) plus QRM-Gemma (quantile/distributional) vary the RM \emph{type} itself. \outdated{DeBERTa most likely removed; the RM-type contrast would rest on QRM-Gemma
-vs its own backbone, Skywork-Reward-Gemma-2-27B-v0.2 --- see log 2026-09-24.}
+comparison), the two Nemotron-32B models hold the recipe fixed across base generations, and QRM-Gemma
+(quantile/distributional) against its own backbone, Skywork-Reward-Gemma-2-27B, varies the RM \emph{type} on a fixed
+base (the DeBERTa encoder RM was dropped on 2026-10-02; log 2026-09-24 has the reasons).
 If the bias clusters by \emph{training data} it is
 dataset-driven; if by \emph{architecture/family}, architecture-driven \citep{kumar2025prefix}. This
 locates where mitigation must live (upstream data governance vs model-internal editing).
@@ -152,7 +148,7 @@ injected on real essays; disability is deferred. All are drawn from the same sco
 The reward-model (RM) set is chosen to disentangle whether bias is \emph{dataset-driven} or
 \emph{architecture-driven}, with controlled comparisons built in: the same Skywork-V2 training data across
 different base architectures (Llama-8B vs Qwen3-8B); the same training recipe across a large size gap (the
-AllenAI RB2 8B vs 70B); distinct RM \emph{types} (a DeBERTa encoder RM and a quantile/distributional QRM);
+AllenAI RB2 8B vs 70B); distinct RM \emph{types} (a quantile/distributional QRM against its scalar backbone);
 and a frontier 70B flagship. \textbf{All reported runs go on the hessian.AI cluster (A100/H100 80\,GB),}
 under a two-month allocation secured 2026-08. The Apple Silicon (MLX) path is retained for local prototyping
 and as the numerical parity reference, not as a source of published numbers. \outdated{The MLX backend has
@@ -166,8 +162,6 @@ $\approx$140\,GB and are sharded across two.
 \textbf{Reward model} & \textbf{Params} & \textbf{Base} & \textbf{GPUs} & \textbf{Role in the comparison}\\
 \hline
 Skywork-Reward-V2-Qwen3-0.6B        & 0.6B & Qwen3   & 1 & pilot; whole pipeline validated here\\
-OpenAssistant deberta-v3-large-v2   & 0.4B & DeBERTa & 1 & encoder RM, pair-format; architecture outlier
-  \outdated{most likely removed, see log 2026-09-24}\\
 Skywork-Reward-V2-Llama-3.1-8B      & 8B   & Llama-3.1 & 1 & top open RM on RewardBench-2\\
 Skywork-Reward-V2-Qwen3-8B          & 8B   & Qwen3   & 1 & same Skywork data, different base (arch effect)\\
 AllenAI Llama-3.1-8B-Instruct-RM-RB2& 8B   & Llama-3.1 & 1 & different recipe; 8B half of the scaling pair\\
@@ -180,7 +174,8 @@ Llama-3.3-Nemotron-70B-Reward       & 70B  & Llama-3.3 & 2 & frontier flagship (
 \hline
 \end{tabular}
 \end{center}
-\emph{Eleven RMs spanning 0.6B--70B and the Llama / Qwen / Gemma / DeBERTa families. GPUs = 80\,GB A100/H100
+\emph{Ten RMs spanning 0.6B--70B and the Llama / Qwen / Gemma families (the OpenAssistant DeBERTa encoder RM was
+dropped on 2026-10-02; reasons in the log, 2026-09-24). GPUs = 80\,GB A100/H100
 cards needed per run at bf16. Exact Hugging Face paths for the NVIDIA Nemotron models are to be confirmed
 against the current releases.}
 
@@ -233,7 +228,7 @@ against the current releases.}
         been run on the \emph{reasoning} concepts of the model-response arm (hiring domain). Running it on the
         demographic directions is what would establish the reward-vs-representation gap for protected
         attributes directly. Until then the abstract/discussion claim is scoped to the reasoning concept.
-  \item \textbf{Accuracy guardrail not yet reported.} RQ0/RQ4 promise RewardBench-2 non-inferiority as the
+  \item \textbf{Accuracy guardrail not yet reported.} RQ4 promises RewardBench-2 non-inferiority as the
         ``without degrading legitimate accuracy'' check; it has not been run. In-domain, the cross-marker
         design now measures the collateral directly: the AUC of $D$ after each nulling. \outdated{Earlier note,
         from the retired direct form: credit and CV at chance on quality (acc\_baseline 0.51 / 0.59, MLX
@@ -241,8 +236,6 @@ against the current releases.}
   \item \textbf{Forced-choice pairwise readout.} Listed as the secondary readout in the design grammar but
         never implemented: it is out-of-distribution for a scalar RM and needs a generative judge, so it is
         deferred rather than dropped.
-  \item \textbf{RQ0b --- \leace{} retrofit to the base paper's own biases} (length, position, uncertainty).
-        Framed as a contribution back to the base method; not yet run.
 \end{itemize}
 
 \subsection*{Validity workstream (item 2 delivered 2026-08-12)}
@@ -303,7 +296,7 @@ it:
   \item \textbf{We do not reproduce the upstream results.} The fork carries the base paper's length,
         position, sycophancy and uncertainty arms, which we neither run nor report --- the extension is the
         whole contribution. Keeping them invites the reader to assume a replication we are not performing
-        (RQ0 aside, which is a scoped re-test of their \emph{claims}, not a re-run of their pipeline).
+        (RQ0, a scoped re-test of their \emph{claims}, was dropped on 2026-10-02).
   \item \textbf{The MLX backend has served its purpose.} It existed so the pipeline could be built and
         validated on Apple Silicon while we had no GPUs. With the allocation confirmed and CUDA parity
         verified (log, 2026-09-09), every reported number now comes off the cluster, so a second backend is
@@ -316,12 +309,12 @@ a fresh repository we own, keep the fork read-only as provenance, and \emph{cite
 vendoring it. Two things to carry over deliberately rather than let lapse: the \textbf{MLX parity evidence},
 which is what licenses the claim that the CUDA numbers are sound even after the backend is dropped, and the
 snapshot in \texttt{results/}, which is the only public record of the pilot numbers.
-\todo{Schedule this \emph{after} the eleven-RM ladder completes. A repo move mid-run would invalidate every
+\todo{Schedule this \emph{after} the ten-RM ladder completes. A repo move mid-run would invalidate every
 path in \texttt{cluster/config.yaml}, the PFSS working directory and the Hugging Face cache layout.}
 
 \section{Target venues}
 Deadlines below are as of \textbf{2026-08-04}; re-check before relying on any of them. The plan is
-\textbf{two-track}: put the pilot findings into a workshop \emph{now}, and hold the full eleven-RM scaling
+\textbf{two-track}: put the pilot findings into a workshop \emph{now}, and hold the full ten-RM scaling
 paper for an archival venue once the compute lands. The same results support two framings, and the framing
 should follow the venue --- an \emph{interpretability / method} framing (the \nullspace{} $+$ \leace{} $+$
 non-linear-probe recoverability story, i.e.\ the reward-vs-representation gap) for ICLR/NeurIPS, and a
@@ -333,7 +326,7 @@ practitioner-usable audit method) for FAccT/AIES.
 \hline
 \textbf{Venue} & \textbf{Next deadline} & \textbf{Fit / note}\\
 \hline
-\multicolumn{3}{@{}l}{\textbf{Tier 1 --- primary archival targets (the full eleven-RM scaling paper)}}\\
+\multicolumn{3}{@{}l}{\textbf{Tier 1 --- primary archival targets (the full ten-RM scaling paper)}}\\
 ICLR 2027 & abstract 2026-09-19, paper 2026-09-24 & Best near-term big-ML target: the mechanistic
 contribution (projection $+$ erasure $+$ non-linear recoverability) is the kind ICLR rewards. About seven
 weeks out --- realistic only if the scaling runs land.\\
@@ -368,7 +361,7 @@ Discovery'' at NeurIPS 2026. Good homes for the mechanistic-erasure angle specif
   \item \textbf{September is the decision point.} ICLR 2027 (2026-09-24) and the likely SoLaR / NeurIPS
         workshop deadlines both fall around September 2026. Compute is no longer the constraint (the
         hessian.AI allocation runs 2026-08 to 2026-10); what decides archival-now vs.\ workshop-now is
-        simply whether the eleven-RM runs are finished and analysed by then.
+        simply whether the ten-RM runs are finished and analysed by then.
   \item \textbf{Sequencing.} Workshop paper on the pilot findings $\rightarrow$ ICLR 2027 or FAccT 2027 for
         the full study. FAccT's January deadline is the natural fallback if September is too tight.
   \item \todo{Confirm the SoLaR 2026 edition, its host conference and deadline; confirm FAccT 2027 dates
@@ -4542,6 +4535,215 @@ reward-vs-representation gap, directly.
 step per domain; exporter macros after the pilot. Cost: per (domain, encoding) one forward pass of
 $\approx$5{,}600 texts (cache hits after the battery), then CPU: up to $\approx$900 MLP fits for hiring (proxy: five
 folds); measured on the smoke.
+
+\subsection*{2026-10-02 --- build: the demographic erasure test}
+Built as designed (entry above): \texttt{runners/run\_demographic\_erasure.py}, a \texttt{pilot.sh} step per domain
+after the battery (smoke lane 8 eval records and two name folds, 70B lane 100 eval records). Three changes to the
+design, all found while building:
+\begin{itemize}
+  \item \emph{A float-rounding separator after erasure (shared code, \texttt{probes/erasure.py}).} \leace{} leaves a
+        feature whose whole variance is the concept constant only up to float32 rounding (the bag-of-words feature
+        ``woman'' became $0.5\pm2\times10^{-7}$), and the probes' standardisation scaled that residue to unit variance:
+        both probes then separated the classes perfectly after \leace{}. The 2026-09-27 review's ``standardising after
+        erasure is affine and cannot reintroduce linear information'' holds in exact arithmetic only.
+        \texttt{probe\_recoverability(unerased\_tr=)} now sets every feature whose training spread after erasure is at
+        most $10^{-4}$ of its spread before to its mean (\texttt{snapped\_features} counts them); both erasure runners
+        pass it. The reasoning test's lexical setups snap no feature in any domain (no word there is a copy of a
+        label), so its design and tests are unaffected; on model states an erased direction spreads over many
+        dimensions, so a snap there is not expected either. Test: the separator is reproduced without the guard and
+        gone with it.
+  \item \emph{An interaction's verdict reads \texttt{leace\_cells}, not its own \leace{} row.} With both main effects
+        linear in the states an MLP rebuilds the XNOR from them: the words alone do (the explicit clauses' lexical
+        control after \leace{} on the sex$\times$marital interaction: MLP 1.0). An interaction is therefore read after
+        \leace{} on every cell, when no linear function of the cell is left; its own \leace{} row is reported, not read.
+  \item \emph{Digits are words in the lexical control}: the default token pattern (letters only) dropped the explicit
+        ages (``30-year-old'') and the proxy birth years, so the control could not see age at all.
+        \texttt{bag\_of\_words(token\_pattern=)}, the reasoning test keeps its default.
+\end{itemize}
+Shared code: \texttt{pool\_folds} (now one key list per fold, so folds may evaluate different states) and
+\texttt{erasure\_verdict} moved from the reasoning runner to \texttt{probes/erasure.py}; the reasoning runner's
+behaviour is unchanged (the same key list for every fold). New tests (planted worlds whose reading is known:
+low-complexity, intersectional, beyond the cells; the name folds; the labels and the cell erasure's span; the reward
+gap; the states equal the battery's texts and its side A is label 1; end to end on the credit fixture). MPS smokes on
+credit, hiring and education (Qwen3-0.6B; plumbing only, numbers not read). \textbf{Not reviewed yet.}
+
+\subsection*{2026-10-02 --- code review of the demographic erasure test (one independent reviewer)}
+One independent Opus reviewer (user's choice: one, not three), read-only, with its own reproductions. Twelve
+findings; all fixed or decided:
+\begin{itemize}
+  \item \emph{(1, high, reproduced) The snap guard had a hole.} It skipped features constant \emph{before} erasure
+        (a word in every clause: ``is'', ``old''), to which \leace{} gives a label-correlated residue of
+        $\approx4\times10^{-8}$; standardised, it separated perfectly again. On hiring and education the lexical
+        control read 0.6--1.0 after \leace{} and after \leace{} on every cell (credit happened not to trigger it).
+        Fixed: features constant before are snapped too (\texttt{snapped\_features} counts only those the erasure
+        left non-constant). Tests: the lexical control of hiring and education, both encodings, at chance where the
+        verdicts read it; the planted residue reproduces the separator without the guard.
+  \item \emph{(2, high, reproduced in simulation) The proxy reward gap compared states erased by different fits.} A
+        record's two poles carry different names, so per-name-fold fits scored its label-1 and label-0 states under
+        different erasures; on uncentered states with a large common mean the fits' differences do not cancel
+        (simulated diffmean gap 0.20 [$-0.74$, 1.17] where 0 is right). Fixed: the reward rows use one fit on all
+        training states (as the battery's nulling does); the held-out names stay a question for the probes. Test: a
+        planted world with a large mean and name-specific components.
+  \item \emph{(3, medium) An axis recovered after \leace{} on itself but not after \leace{} on every cell is not
+        high-complexity}: the MLP used a \emph{linear} interaction term that \leace{} on the axis alone leaves.
+        \textbf{Decided (user):} verdict ``recoverable only through a linear interaction with another factor
+        (intersectional, not high-complexity)'', and only where an interaction concept of that axis is itself linearly
+        decodable (else ``unresolved'': a 7-column erasure can also just cost power); ``entangled, high-complexity''
+        only for recovery that survives \leace{} on every cell.
+  \item \emph{(4, medium) Proxy intervals treated the names as fixed}, though $\approx$2 held-out names per pool and
+        fold carry the generalisation. \textbf{Decided (user):} a crossed records $\times$ names bootstrap
+        (\texttt{scoring.intervals.crossed\_bootstrap}, the two-way ``pigeonhole'' bootstrap) for proxy rows, plus
+        per-name accuracies (\texttt{by\_name}). Explicit rows keep the record bootstrap; the reward gap too (a
+        per-record matched contrast, as in the battery).
+  \item \emph{(6, low) Chance under name folds.} \textbf{Decided (user):} chance is each fold's majority share,
+        item-weighted (\texttt{pool\_folds}): within a fold that is the most an uninformative probe can reach, and it
+        closes a liberal route (a probe predicting its training minority beats the pooled share without
+        information). It does not lift the conservative case the reviewer saw (an uninformative probe at 0.40):
+        lowering the bar to catch that would let a noise probe read as recoverable after \leace{}.
+  \item \emph{Smaller:} the eval texts are mostly not cache hits (the battery evaluates 200 pairs; docstring and
+        \texttt{pilot.sh} corrected); the legend's ``above the lexical control'' had no implementation --- each concept
+        now carries \texttt{lexical\_recovers\_in\_read\_row}, flagged in the report; proxy names are checked before the
+        model loads; \texttt{--encodings} in canonical order (the order no longer changes the result name); the
+        selection says per encoding whether the training records are exactly the battery's probe split; the reasoning
+        erasure result records \texttt{snapped\_features} too. Kept: a result name carries the requested
+        \texttt{--eval-records} when fewer exist (the setting, as the cross-marker runner's \texttt{--n-strong});
+        the selection records the number used.
+\end{itemize}
+Checked correct by the reviewer: the labels and the cell erasure's span; reading an interaction from \leace{} on every
+cell; the name folds leak-free; alignment of folds, items, keys, rewards and QRM gates; the reward gap's arithmetic;
+the prompt (the battery's); \texttt{pilot.sh} wiring; the reasoning arm unchanged (no snap in any of its lexical
+setups, every domain and fold). New tests for every fix; MPS smokes on credit and education (no model feature
+snapped; training records identical to the battery's split in both encodings). The second review round is open.
+
+\subsection*{2026-10-02 --- decisions: DeBERTa and RQ0 dropped}
+\textbf{Decided (user):} (1) \emph{The OpenAssistant DeBERTa RM is dropped} from the RM set (noted 2026-09-24, reasons
+there: first-token pooler, 512-token limit, weak RM; QRM-Gemma carries the RM-type contrast against its own backbone).
+The RM table, RQ1/RQ6 and the handout now say ten RMs; the checkpoint left \texttt{cluster/prefetch\_models.py}.
+\texttt{verify\_score\_path} still refuses any first-token model, and its test keeps a tiny DeBERTa as the example.
+(2) \emph{RQ0 is dropped}: replicating the base paper's interventions and re-testing its own biases with \leace{} is
+not the focus of a FAccT paper on protected attributes. The handout lists it as further research outside the
+project's focus. The RewardBench-2 accuracy guardrail it shared with RQ4 stays, under RQ4. Dated log entries keep
+their original wording (``eleven'', RQ0).
+
+\subsection*{2026-10-02 --- design: the RewardBench-2 accuracy guardrail (RQ4)}
+RQ4 asks whether the bias can be removed \emph{without harming legitimate accuracy}. In-domain the cross-marker design
+already measures the collateral (the AUC of $D$ between strong and weak records after each nulling); this guardrail
+is the out-of-domain, general one, as in the base paper.
+
+\paragraph{The benchmark} (RewardBench~2, \texttt{allenai/reward-bench-2}, ODC-BY; checked 2026-10-02): 1{,}865
+prompts in six subsets --- Factuality 475, Precise IF 160, Math 183, Safety 450, Focus 495 (each one correct and three
+incorrect responses: correct if the correct one scores highest; a tie at the top counts $1/k$, the official rule,
+random $=25\%$) and Ties 102 (questions with several correct answers, each as a ``tied'' prompt and a ``ref'' prompt
+with one; official score $0.30\,\text{acc}_\text{tied} + 0.30\,\text{acc}_\text{ref} + 0.20\,\text{preferred} +
+0.20\,\text{preferred}_\text{hard} + 0.01\,\text{margin}$, from \texttt{rewardbench/utils.py::process\_single\_model},
+to be ported verbatim). The overall score is the unweighted mean of the six subsets (the leaderboard's). The base
+paper \citep{fein2026onebias} reports non-inferiority at $\delta = 5$ points (``the empirical spread among top-ranked
+RMs''), one-sided paired $t$-tests; mean accuracy 70.1\% at baseline, 69.3\% after its combined interventions.
+
+\paragraph{Decided (user, 2026-10-02).}
+\begin{enumerate}
+  \item \emph{Edits}: per domain and encoding, each direct-arm direction (the battery's, refitted from its probe split:
+        cache hits), the \leace{} eraser of each attribute on the same states, and the \emph{joint} projection of all of
+        a domain's attribute directions (both encodings, orthonormalised; the corner direction is left out, as it lies
+        in their span up to its three-way part --- \emph{corrected 2026-10-03}: not ``up to noise''; its share outside
+        the span is recorded) --- the edit a deployer would ship --- plus one joint row over all three domains. The
+        cross-marker and comparative directions come later, from their arms' saved direction files.
+  \item \emph{Margin} $\delta = 2$ accuracy points on the overall score (testable; \emph{corrected 2026-10-03:} not
+        ``to well under $\pm1$ point'' --- the smoke's 95\% half-widths reach $\pm1.6$ points for the strong edits);
+        each edit also reports whether it passes at the base paper's 5, for comparability.
+  \item \emph{Ties included} with the official scoring, so the overall is the leaderboard's.
+  \item \emph{Length}: \texttt{max\_length} 4{,}096; a prompt with any completion longer is left out of the baseline
+        and every edit alike, counted per subset.
+\end{enumerate}
+
+\paragraph{Design.} \texttt{runners/run\_rewardbench\_guardrail.py}, one run per model: RewardBench~2 embedded once
+(each RM's own chat template, as RewardBench formats it and as our pipeline already does; final-token states plus QRM's
+gates, into the embedding cache), then every edit is only the head on edited states (cheap), with an $\alpha$ sweep
+($0.25, 0.5, 0.75, 1$) for the joint rows --- RQ4's trade-off curve, read against the bias removed at the same $\alpha$.
+\begin{itemize}
+  \item \emph{Reproduction check first}: the unedited overall must match the model's published RewardBench~2 score
+        (to about a point, allowing for the length exclusions); a miss means our scoring path differs from the
+        model's, and no edit is read until it is explained.
+  \item \emph{Test}: per edit the paired change (edited $-$ baseline) of the overall and of each subset, by a bootstrap
+        over prompts stratified by subset (Ties resamples a question's tied and ref prompts together); non-inferior if
+        the one-sided 95\% lower bound of the overall change is above $-\delta$. The claim is that every reported edit
+        passes, so each must pass on its own (an intersection--union test): no multiplicity correction. Safety is the
+        subset to watch.
+  \item \emph{Provenance and licence}: \texttt{meta} as every runner (model commit, code commit, the dataset's Hub
+        revision and a hash of the rows used); results carry prompt ids and numbers only; the data stay in the HF
+        cache, never committed.
+  \item \emph{Cost}: one forward pass of $\approx$7{,}500 best-of-4 texts plus the Ties completions per model (cache
+        hits afterwards); a \texttt{pilot.sh} step per lane.
+\end{itemize}
+
+\subsection*{2026-10-03 --- build: the RewardBench-2 guardrail}
+Built as designed (entry above): \texttt{scoring/rewardbench.py} (the data with integrity checks, the official
+best-of-4 and Ties scores, the paired subset-stratified bootstrap), \texttt{runners/run\_rewardbench\_guardrail.py},
+\texttt{configs/rewardbench2\_guardrail\_qwen06.yaml}, \texttt{configs/rewardbench2\_published.yaml} (the leaderboard's
+subset scores for 7 of the 10 models, from \texttt{allenai/reward-bench-2-results} at a fixed revision; none for the
+three Nemotron reward models, whose reproduction check reads ``not available''), the dataset added to
+\texttt{cluster/prefetch\_models.py} (pinned revision) and a \texttt{pilot.sh} step. Facts found while building: the
+benchmark has 8{,}977 completions (Ties: 51 questions $\times$ a tied and a ref row, 11--38 completions each); with the
+Qwen3 tokenizer no row exceeds 4{,}096 tokens (so nothing is excluded and the overall stays the leaderboard's); ids
+repeat across subsets, so rows are keyed by position. The Ties score equals a verbatim port of the official code to
+$10^{-12}$ (incl.\ the division by zero of a spread of 0).
+
+\paragraph{MPS smoke} (Qwen3-0.6B, the full benchmark; edits from scratch credit and education manifests at 40 probe
+records; plumbing, the edit numbers are not read): the unedited model scores 61.0 overall against the published
+61.25 (every subset within 1.2 points) --- reproduced --- and its 8{,}977 completion rewards correlate with the
+leaderboard's own per-completion scores at $r = 0.99987$ (median $|\Delta| = 0.05$ reward units: bf16 on MPS vs CUDA):
+our scoring path is RewardBench's for this model. Every edit row, the bootstrap and the side file were written; 35\,min
+on MPS, almost all of it the benchmark's forward pass (the direct-arm directions were cache hits). \textbf{Not reviewed
+yet.}
+
+\subsection*{2026-10-03 --- code review of the RewardBench-2 guardrail (one independent reviewer)}
+One independent Opus reviewer, read-only, with its own reproductions (an offline rebuild of the smoke from the
+embedding cache, mutation tests, the leaderboard's per-completion files). No bug changing a result in the configured
+run: the best-of-$n$ rule and the Ties score equal the official code; formatting matches RewardBench per model type
+(Qwen3 without BOS; the RB2 Tulu template with one BOS; Skywork-Llama and Gemma/QRM, where the official text has a
+double BOS whose first the official pipeline masks, equivalent to our single one; Nemotron on its template's ids); no
+row exceeds 4{,}096 tokens with any of the four tokenizer families (longest 2{,}084); the diffmean directions are the
+battery's; the bootstrap is paired, stratified, and its 5th percentile the right one-sided bound. Findings and what was
+done:
+\begin{itemize}
+  \item \emph{(1, high, design) Non-inferiority on the overall only} let one subset lose $\approx$12 points (smoke:
+        passes with Math $-4.1$, Safety $-2.8$). \textbf{Decided (user):} a joint edit is non-inferior only if, in
+        addition, Safety's one-sided lower bound is above $-3$ points; every other subset is reported with its interval.
+  \item \emph{(2, medium, design) ``No multiplicity correction''} holds only for a pre-stated conjunctive claim.
+        \textbf{Decided (user):} the confirmatory edits are the joint projections (each domain's and the all-domain one);
+        per-direction and \leace{} rows are exploratory (intervals, no pass flags). Claims: every family's joint edit at
+        full strength passes at level 0.05 (one conjunctive claim, intersection--union), and per family the largest
+        $\alpha$ of a fixed-sequence test (smallest $\alpha$ first, stop at the first fail) at level $0.05/F$, a
+        Bonferroni split over the $F$ families (four with three domains): the fixed sequence needs no correction within a
+        family, but the families are separate claims.
+  \item \emph{(3, medium) The reproduction gate was printed, not enforced.} Now a run is \texttt{readable} only on the
+        whole benchmark with the reproduction holding; otherwise every pass flag and claim is None.
+  \item \emph{(4, medium) The tests missed result-changing mutations} (rewards misaligned with the kept rows, the
+        2.5th instead of the 5th percentile, half-size draws, the joint $\alpha$ ignored, $\delta$'s sign). Each is now
+        pinned: the side file against a direct head on the kept rows, the bounds against recomputed percentiles, the
+        bootstrap SE against the Bernoulli SE, the $\alpha$ reaching the projection, the decision rule.
+  \item \emph{(5) The reproduction gate is per completion where possible.} \textbf{Decided (user):} where the
+        leaderboard publishes per-completion scores (6 of the 7 published models, not Skywork-Gemma-2-27B), the
+        reproduction also requires $r \ge 0.99$ with them and every row matched; the files are prefetched at the pinned
+        revision.
+  \item \emph{(11) bf16 head.} \textbf{Decided (user):} this runner applies the head in float32 to the bf16-rounded
+        state (\texttt{probes.heads.score\_saved}, the tested offline path): the bf16 head left 1{,}687 distinct rewards
+        for 8{,}977 completions and inflated ties at the top (8 vs the fp16 leaderboard's 2).
+  \item \emph{(13) Random-subspace reference rows} (\textbf{decided}): per family, five random subspaces of the joint
+        basis's rank projected out --- the reviewer's offline check found them nearly free ($-0.08$ to $+0.24$ points),
+        so a joint edit's loss comes from its directions lining up with the head, not from the dimensions removed.
+  \item \emph{(6) Wording}: applied to RewardBench states, a \leace{} map is the shipped map out of domain, not an
+        erasure there (it moves a state along the attribute's direction by a whitened reading centred on the direct-arm
+        mean; its median shift there is 2--11 times that on its own training states). Docstring and notes say so.
+  \item \emph{Smaller, fixed}: the published table validated before the model loads; the direct configs' settings in
+        \texttt{meta}; the corner direction's share outside the joint span recorded; the \leace{} maps' training records
+        checked against the battery's split; the benchmark embedded in order of length; non-finite rewards refused; the
+        prefetch script reads the revisions from the configs; the design entry's precision claim corrected.
+\end{itemize}
+MPS re-smoke (Qwen3-0.6B, the full benchmark, cache hits: 9\,s): the float32 head gives 61.1 overall against the
+published 61.25 and $r = 0.99987$ per completion --- \texttt{readable}; every row, reference and claim written (the edit
+numbers are not read: scratch manifests, 40 probe records). New tests for every fix; 1{,}129 tests pass. \textbf{One
+review round; a second is open.}
 
 \bibliographystyle{plainnat}
 \bibliography{shared/references}
